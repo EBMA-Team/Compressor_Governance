@@ -1,0 +1,1312 @@
+---
+title: "COMPRESSOR_Governance"
+author: "Corey Scholes"
+affiliation: "EBM Analytics"
+version: 3.0
+type: "website"
+number-sections: true
+number-depth: 3
+date: "2025-Jul-30"
+date-modified: "2025-Jul-30"
+
+bibliography: COMPRESSORGov references.bib
+
+editor:
+  visual
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+# Preamble
+
+The following analysis is a report on the activity, quality and data contained in the COMPRESSO registry, which is described in the [registry wiki](https://sites.google.com/ebma.com.au/compressor-registry/home?authuser=0).
+
+Analysis packages were loaded initially into the *R* environment.
+
+```{r}
+#| label: load-packages
+
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(# Load required packages
+  "ggforce",
+  "ggdag",
+  "ggmap",
+  "geosphere",
+  "dplyr",
+  "flextable",
+  "litedown",
+  "grateful",
+  "modelsummary",
+  "quantreg",
+  "readr",
+  "knitr",
+  "cardx",
+  "forcats",
+  "gargle",
+  "googledrive",
+  "googlesheets4",
+  "openxlsx2",
+  "tidyverse",
+  "tidymodels",
+  "lubridate",
+  "consort",
+  "gtsummary",
+  "survival",
+  "ggplot2",
+  "ggdist",
+  "ggfortify",
+  "ggsurvfit",
+  "mice",
+  "marginaleffects",
+  "naniar",
+  "quantreg",
+  "broom",
+  "epoxy",
+  "broom.helpers",
+  "stringr"
+  )
+  
+  
+```
+
+Access to the COMPRESSOR datasets was pre-authorised.
+
+```{r}
+#| label: auth2
+#| echo: false
+
+options(
+  gargle_oauth_cache = ".secrets",
+  gargle_oauth_email = TRUE
+)
+
+googledrive::drive_auth(
+  cache = ".secrets", 
+  email = TRUE
+  )
+```
+
+A function was generated to retrieve files using the *googledrive* package, to call on later in the analysis for processing data imports.
+
+```{r}
+#| label: folder
+#| echo: false
+
+base_folder_id1 <- "1c08mZXSxqhJx5IniJ1ur3YpWpgWXUoIO"
+
+
+
+
+```
+
+```{r}
+get_specific_snapshot <- function(folder_name, base_folder_id = base_folder_id1) {
+  tryCatch({
+    # Check if the folder exists in the base directory
+    folder <- googledrive::drive_ls(as_id(base_folder_id), pattern = paste0("^", folder_name, "$"))
+    
+    if(nrow(folder) == 0) {
+      stop(paste("Folder", folder_name, "not found"))
+    }
+    
+    # Find the snapshot file in the specified folder
+    snapshot_file <- googledrive::drive_ls(
+      folder$id, 
+      pattern = "Registry data snapshot\\.xlsx$"
+    )
+    
+    if(nrow(snapshot_file) == 0) {
+      stop("No snapshot file found in specified folder")
+    }
+    
+    # Return both pieces of information as a list
+    return(list(
+      snapshot = snapshot_file,
+      folder_name = folder$name
+    ))
+    
+  }, error = function(e) {
+    stop(paste("Error finding specified snapshot:", e$message))
+  })
+}
+```
+
+Data was retrieved from live database tables. Source files were specified and stored as global variables to call on in further functions.
+
+```{r}
+#| label: live-table
+#| echo: false
+
+SheetIDs <- list(
+DbSS = "https://docs.google.com/spreadsheets/d/1ZqqVDOy2Gsq1E0mKAuQokfNyccpNUt4x0EJC156T90Q/edit"
+)
+
+# Treatments Masterlist - Timestamp is > Registry Start date (gsuite)
+
+```
+
+```{r}
+#| label: read-tables
+
+# Authenticate for sheets using the same token
+gs4_auth(token = drive_token())
+
+
+
+ComplicTable <- googlesheets4::read_sheet(
+  ss = SheetIDs$DbSS,
+  sheet = "Complications", 
+  col_names = TRUE, 
+  col_types = "cccTciicicccccccccccccccccDccD"
+  )
+
+
+#To match to acctData
+PatientTable <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "Patient", 
+  range = "A10:R",
+  col_names = FALSE, 
+  col_types = "DccccDcccDcicccDci"
+  )
+
+
+Patient_Col <- c(
+  "PatientCreationDate",
+  "PatientID",
+  "LastName",	
+  "FirstName",	
+  "AlternateID",	
+  "DateOfBirth",	
+  "Sex",	
+  "RegistryStatus",	
+  "RegistryStatusNotes",	
+  "DateRegistryStatus",	
+  "NotificationMethod",	
+  "NoTreatmentRECORDs",	
+  "Email",	
+  "Phone",
+  "PatientRegistrationStatus",
+  "DatePatientRegistration",
+  "DominantSide",
+  "TrueNoTreatments"
+)
+
+colnames(PatientTable) <- Patient_Col
+
+
+```
+
+A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (30-Jun-2025).
+
+```{r}
+
+# Authenticate for sheets using the same token
+gs4_auth(token = drive_token())
+
+# To get a snapshot from a specific folder (e.g., "20230415")
+specific_snapshot <- get_specific_snapshot("20250724")
+
+
+```
+
+```{r}
+
+temp_file1 <- tempfile(fileext = ".xlsx")
+drive_download(
+  file = specific_snapshot$snapshot$id,
+  path = temp_file1,
+  overwrite = TRUE
+)
+
+# Correction to reset back to excel origin
+DaysDiff <- as.numeric(as.duration(interval(ymd("1899-12-30"), ymd("1970-01-01"))),"days")
+
+
+Snapshot <- openxlsx2::wb_to_df(
+  temp_file1,
+  sheet = "Combined",
+  colNames = TRUE,
+  detectDates = TRUE
+  ) |> mutate(
+    PatientID = stringr::str_split_i(TreatmentID,"\\.",1),
+    SurgicalTreatment2 = case_when(
+      stringr::str_detect(str_to_lower(EBMAComment),"surgery recommended") & SurgicalTreatment == "Non-Surgical" ~ "Surgery recommended",
+      .default = SurgicalTreatment
+    )
+  ) |> unite(
+  col = "CombID",
+  sep = ".",
+  c("PatientID","AffectedSide"),
+  remove = FALSE
+)
+
+
+
+STROBEInput <- openxlsx2::wb_to_df(
+  temp_file1,
+  sheet = "Strobe_Input",
+  colNames = TRUE,
+  detectDates = TRUE
+  )
+
+```
+
+# Context
+
+COMPRESSOR (Complex Reconstructive Surgery Outcomes Registry) is a clinical quality registry supporting the practices of one surgeon in Sydney, New South Wales. It has been in operation over two distinct periods, with upper and lower limb tumour cohorts, as well as tumour of the pelvis and reintervention arthroplasty cohorts of the hip and knee.
+
+# Recruitment Flow by Region
+
+Flowcharts as per STROBE [@Vandenbroucke2007] and RECORD [@Benchimol2015] guidelines were generated for treatments enrolled into the Registry. Followup was set to eligibility at .
+
+```{r}
+
+
+STROBEFlow2 <- STROBEInput |> 
+  # Filter out rows with missing TreatmentID
+  dplyr::filter(!is.na(TreatmentID)) |> 
+  # Join with relevant columns from Snapshot
+  dplyr::left_join(
+    Snapshot |> 
+      dplyr::select(
+        TreatmentID,
+        CombID,
+        DateInitialExamination,
+        EligibleAtPreop,
+        EligibleAtx12months,
+        EligibleAtx60months,
+        EligibleAtx120months,
+        SurgicalTreatment2
+      ) |> 
+      # Convert all date columns to date format
+      dplyr::mutate(
+        across(contains("Date"), lubridate::ymd)
+      ),
+    # Explicitly specify join column
+    by = "TreatmentID"
+  ) |> dplyr::mutate(
+    TreatmentStatus2 = if_else(
+          TreatmentStatus == "No further followup" & is.na(DateTreatment),
+          "Archived",
+          TreatmentStatus
+  ),
+  EligibleFU = if_else(
+    EligibleAtx12months == "Yes" | EligibleAtx60months == "Yes" | EligibleAtx120months == "Yes",
+    "Yes",
+    "No"
+  )
+  )
+
+```
+
+```{r}
+
+CurrentDate <- as.character("20250724")
+
+STROBEFlow3 <- STROBEFlow2 |> dplyr::mutate(
+    exclusion1 = case_when(
+    is.na(SurgicalTreatment2) ~ "Not a surgical treatment",
+    SurgicalTreatment2 == "Surgical" & stringr::str_detect(RegistryStatus,"Opt-out") ~ "Patient Opt-Out",
+    SurgicalTreatment2 == "Surgical" & is.na(RegistryCohortName) ~ "No cohort",
+    SurgicalTreatment2 == "Surgical" ~ NA_character_,
+    .default = "Not a surgical treatment"
+  ),
+  followup = if_else(
+    is.na(exclusion1),
+    TreatmentID,
+    NA_character_
+  ),
+  lost_followup = case_when(
+    is.na(exclusion1) & TreatmentStatus2 == "Failed" & (ymd(DateStatusChange) < ymd(CurrentDate)) ~ "Procedure failure",
+    is.na(exclusion1) & TreatmentStatus2 == "No further followup" & (ymd(DateStatusChange) < ymd(CurrentDate)) ~ "Treatment Progression End",
+    is.na(exclusion1) & EligibleFU == "No" ~ "Not eligible for followup"
+  ),
+  mitt = if_else(
+    !is.na(followup) & is.na(lost_followup),
+    TreatmentID,
+    NA_character_
+)
+) |> dplyr::rename(
+  trialno = "TreatmentID",
+  arm3 = "RegistryCohortName"
+)
+
+```
+
+```{r}
+#| label: fig-strobe-cohort1
+#| fig-cap: "Flowchart of extraction and followup of surgical sample from the Registry - 1"
+
+
+STROBEPlot1 <- consort_plot(
+  data = STROBEFlow3 |> dplyr::filter(
+    arm3 == "TumourLowerLimb" | arm3 == "ReinterventionTKA" | arm3 == "TumourPelvis"
+  ),
+ orders = c(
+   trialno = "Population",
+   exclusion1 = "Ineligible",
+   trialno = "Baseline Analysis",
+   arm3 = "Cohort",
+   lost_followup = "Excluded",
+   mitt = "Followup Analysis"
+   ),
+ side_box = c(
+   "exclusion1",
+   "lost_followup"
+   ),
+ allocation = "arm3",
+ cex = 0.6
+)
+
+knitr::knit_print(STROBEPlot1)
+
+```
+
+Cumulative recruitment over time was plotted from Registry inception to the present.
+
+```{r}
+#| label: fig-progress
+#| fig-cap: "Cumulative (non-excluded) record creation within PRULO from inception to present"
+
+
+RecordCount <- dplyr::summarise(
+  STROBEFlow3 |>  dplyr::filter(
+    !(TreatmentStatus == "Archived")
+    ),
+  Count = n(),
+  .by = PatientCreationDate
+) |> arrange(
+  PatientCreationDate
+) |> dplyr::mutate(
+  CumulativeCount = cumsum(Count),
+  PatientCreationNum = as.numeric(PatientCreationDate)
+  ) |> filter(
+    !(PatientCreationDate < ymd("20160701"))
+   
+  )
+
+cumulative_plot <- ggplot(RecordCount, aes(x = PatientCreationDate, y = CumulativeCount)) +
+  geom_line(color = "#2c3e50", size = 1) +
+  # Add the spline fit with confidence interval
+  geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs"), 
+              color = "#e74c3c", size = 1.2, se = TRUE, fill = "#e74c3c", alpha = 0.2) +
+  geom_point(color = "#3498db", size = 1) +
+  # Add labels and title
+  labs(
+    title = "Cumulative Patient Count Over Time",
+    x = "Date",
+    y = "Cumulative Number of Patients",
+    #caption = "Data source: STROBEFlow3"
+  ) +
+  # Improve the theme and formatting
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+
+# Print the plot
+knitr::knit_print(cumulative_plot)
+
+
+```
+
+# Missingness and Compliance
+
+## Baseline and Intraoperative
+
+```{r}
+#| label: fig-baseline-miss
+#| fig-cap: "Missingness of baseline PROMs and intraoperative date by registry cohort"
+
+gg_miss_fct(Snapshot |> dplyr::filter(
+      EligibleAtPreop == "Yes" | EligibleAtIntraop == "Yes",
+      SurgicalTreatment2 == "Surgical"
+      ) |> dplyr::select(
+        VR12PCS_Preop,
+        #PatientPosition,
+        #TreatmentProvider, 
+        RegistryCohortName
+        ), 
+      RegistryCohortName
+      )
+
+
+```
+
+Missingness for baseline PROMs (represented by EQ5D) and intraoperative data is captured in @fig-baseline-miss. Intraoperative data was captured slightly differently between cohorts, so multiple fields have been utilised to illustrate intraoperative capture across cohorts.
+
+Overall, there are variable response rates for baseline scores across cohorts. This may reflect variable engagement during consultant clinics. We have also identified a system issue that is impeding scores from being sent to patients that are being re-categorised from one cohort to another. This is predominantly affecting cases that have limited information on their referral and are subsequently moved from the *General* cohort.
+
+## Patient-reported Outcomes by TimePoint
+
+```{r}
+min_percent <- 10
+max_percent <- 100  # Or another value that encompasses all your data
+```
+
+```{r}
+#| label: fig-qdash-miss
+#| fig-cap: "Missingness of VR12 by Timepoint across all cohorts"
+
+PROMVR12 <- Snapshot |> dplyr::select(
+  TreatmentID,
+  starts_with("VR12"),
+  starts_with("EligibleAt"),
+  -EligibleAtIntraop
+) |> rename_with(
+  ~gsub("Atx","At_",.x, fixed = TRUE)
+) |> rename_with(
+  ~gsub("VR12_PCS","VR12PCS",.x, fixed = TRUE)
+) |> dplyr::rename(
+  EligibleAt_Preop = "EligibleAtPreop"
+  ) |> pivot_longer(
+  cols = !TreatmentID,
+  names_to = c(".value","TimePoint"),
+  names_sep = "_",
+  values_drop_na = TRUE
+) |> mutate(
+  TimePoint = factor(TimePoint, levels = c("Preop","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
+) |> dplyr::filter(
+  EligibleAt == "Yes",
+  !is.na(TimePoint)
+) |> left_join(
+  Snapshot |> dplyr::select(
+    TreatmentID,
+    SurgicalTreatment2,
+    RegistryCohortName
+  ),
+  by = "TreatmentID"
+)
+
+gg_miss_fct(PROMVR12 |> dplyr::filter(
+      !is.na(EligibleAt),
+      SurgicalTreatment2 == "Surgical"
+      ) |> dplyr::select(
+        VR12PCS,
+        TimePoint
+        ), 
+      TimePoint
+      ) +
+  scale_fill_gradient(
+    low = "steelblue",     # Color for low missingness values
+    high = "darkred",      # Color for high missingness values
+    limits = c(min_percent, max_percent),    # Consistent scale limits
+    name = "% Missing"     # Legend title
+  )
+
+
+```
+
+```{r}
+#| label: fig-tumourpelvis-miss
+#| fig-cap: "Missingness of MSTS by Timepoint in the TumourPelvis cohort"
+
+SnapshotTP <- Snapshot |> dplyr::filter(
+  RegistryCohortName == "TumourPelvis"
+  ) |> rename_with(
+  ~gsub("Atx","At_",.x, fixed = TRUE)
+) |> rename_with(
+  ~gsub("MSTSLower_Total","MSTSLowerTotal",.x, fixed = TRUE)
+) |> rename(
+  EligibleAt_Preop = "EligibleAtPreop"
+)
+
+PROMTP_MSTS <- SnapshotTP |> dplyr::select(
+  TreatmentID,
+  starts_with("MSTSLowerTotal"),
+  starts_with("EligibleAt"),
+  -EligibleAtIntraop
+) |> pivot_longer(
+  cols = !TreatmentID,
+  names_to = c(".value","TimePoint"),
+  names_sep = "_",
+  values_drop_na = TRUE
+) |> mutate(
+  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
+) |> dplyr::filter(
+  EligibleAt == "Yes",
+  !is.na(TimePoint)
+) |> left_join(
+  SnapshotTP |> dplyr::select(
+    TreatmentID,
+    SurgicalTreatment2
+  ),
+  by = "TreatmentID"
+)
+
+
+
+gg_miss_fct(PROMTP_MSTS |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dplyr::select(MSTSLowerTotal,TimePoint), TimePoint) +
+  scale_fill_gradient(
+    low = "steelblue",     # Color for low missingness values
+    high = "darkred",      # Color for high missingness values
+    limits = c(min_percent, max_percent),    # Consistent scale limits
+    name = "% Missing"     # Legend title
+  )
+```
+
+```{r}
+#| label: fig-tumourLL-miss
+#| fig-cap: "Missingness of MSTS by Timepoint in the Tumour Lower Limb cohort"
+
+
+SnapshotTLL <- Snapshot |> dplyr::filter(
+  RegistryCohortName == "TumourLowerLimb"
+) |> rename_with(
+  ~gsub("Atx","At_",.x, fixed = TRUE)
+) |> rename_with(
+  ~gsub("MSTSLower_Total","MSTSLowerTotal",.x, fixed = TRUE)
+) |> rename(
+  EligibleAt_Preop = "EligibleAtPreop"
+)
+
+PROMTLL <- SnapshotTLL |> dplyr::select(
+  TreatmentID,
+  starts_with("MSTSLowerTotal"),
+  starts_with("EligibleAt"),
+  -EligibleAtIntraop
+) |> pivot_longer(
+  cols = !TreatmentID,
+  names_to = c(".value","TimePoint"),
+  names_sep = "_",
+  values_drop_na = TRUE
+) |> mutate(
+  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
+  MSTSLowerTotal = as.numeric(MSTSLowerTotal)
+) |> dplyr::filter(
+  EligibleAt == "Yes",
+  !is.na(TimePoint)
+) |> left_join(
+  SnapshotTLL |> dplyr::select(
+    TreatmentID,
+    SurgicalTreatment2,
+    TreatmentType,
+    TreatmentStatus
+  ),
+  by = "TreatmentID"
+)
+
+
+
+gg_miss_fct(PROMTLL |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dplyr::select(contains("MSTSLowerTotal"), TimePoint), TimePoint) +
+  scale_fill_gradient(
+    low = "steelblue",     # Color for low missingness values
+    high = "darkred",      # Color for high missingness values
+    limits = c(min_percent, max_percent),    # Consistent scale limits
+    name = "% Missing"     # Legend title
+  )
+```
+
+The cumulative results of the Registry illustrate difficulty in engaging patients beyond short term followup.
+
+# Cohort Analysis
+
+The VR12 is a *general* health questionnaire that is presented to *all* patients enrolled in the registry.
+
+```{r}
+#| label: fig-vr12-cohort
+#| fig-cap: "Summary of VR12 at baseline by cohort"
+
+Snapshot <- dplyr::mutate(
+  Snapshot,
+  across(contains("Score"), ~as.numeric(.))
+)
+
+FigureVR12 <- Snapshot |> dplyr::filter(SurgicalTreatment2 == "Surgical") |>
+  ggplot(aes(y = RegistryCohortName, x = VR12PCS_12months)) +
+  stat_halfeye()
+
+
+knitr::knit_print(FigureEQ5D)
+
+```
+
+Between-cohort variability is observed for the Physical Component Score of the VR12. Most notable is the high variation within all cohorts.
+
+```{r}
+#| label: fig-qdash
+#| fig-cap: "Summary of Quick DASH by Timepoint"
+
+#preop_position <- which(levels(PROMQDASH$TimePoint) == "Preop")
+
+FigureQDASH <- PROMQDASH |> dplyr::filter(
+  !(is.na(SurgicalTreatment2)),
+  !is.na(QDASHTotalScore)
+) |> ggplot(aes(y = QDASHTotalScore, x = TimePoint, fill = SurgicalTreatment2, color = SurgicalTreatment2)) +
+  stat_halfeye(
+    alpha = 0.5,  # Transparency for overlap visibility
+    position = "identity",  # Overlay the distributions
+    na.rm = TRUE,
+    scale = 0.9  # Slightly scale down to avoid too much overlap
+  ) +
+  # Add appropriate scale colors "Surgery recommended" = "darkred"
+  scale_fill_manual(values = c(
+    "Surgical" = "steelblue", 
+    "Non-Surgical" = "darkgray",
+    "Surgery recommended" = "darkred"
+    )
+    ) +
+  scale_color_manual(values = c(
+    "Surgical" = "steelblue4", 
+    "Non-Surgical" = "dimgray",
+    "Surgery recommended" = "darkred"
+    )
+    ) +
+  labs(
+    y = "QDASHTotalScore",
+    x = "Time Point",
+    fill = "Treatment",
+    color = "Treatment"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank()
+  ) + facet_wrap(
+    ~RegistryCohortName, ncol = 2
+  )
+
+knitr::knit_print(FigureQDASH)
+```
+
+```{r}
+
+
+PROMMODEM <-  Snapshot |> rename_with(
+  ~gsub("Atx","At_",.x, fixed = TRUE)
+) |> rename(
+  EligibleAt_Preop = "EligibleAtPreop"
+) |> dplyr::select(
+  starts_with("MODEMP"),
+  starts_with("Eligible"),
+  TreatmentID
+)
+
+PROMMODEM1 <- PROMMODEM |> dplyr::select(
+  -EligibleAtIntraop
+) |> pivot_longer(
+  cols = !TreatmentID,
+  names_to = c(".value","TimePoint"),
+  names_sep = "_",
+  values_drop_na = TRUE
+) |> mutate(
+  TimePoint = factor(TimePoint, levels = c("6months","12months"), ordered = TRUE, exclude = NA),
+  across(starts_with("MODEMP"), ~ forcats::fct(
+    .,
+    levels = c(
+    "Not applicable",
+    "Definitely not",
+    "Probably not",
+    "Not sure",
+    "Probably yes",
+    "Definitely yes"
+  ))
+)
+) |> dplyr::filter(
+  EligibleAt == "Yes",
+  !is.na(TimePoint)
+) |> left_join(
+  Snapshot |> dplyr::select(
+    TreatmentID,
+    SurgicalTreatment2,
+    RegistryCohortName
+  ),
+  by = "TreatmentID"
+)
+
+```
+
+```{r}
+#| label: fig-modemp1
+#| fig-cap: "Satisfaction with symptom relief by Time Point and Cohort captured by post-operative MODEMs"
+
+FigModemP1 <- ggplot(PROMMODEM1 |> dplyr::filter(!is.na(MODEMPQ1), SurgicalTreatment2 == "Surgical"), aes(x = TimePoint, fill = MODEMPQ1)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~ RegistryCohortName) +
+  labs(#title = "",
+       x = "Time Point",
+       y = "Count",
+       fill = "Outcome") +
+  scale_fill_viridis_d(option = "viridis") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "bottom"
+  )
+
+
+
+knitr::knit_print(FigModemP1)
+```
+
+```{r}
+#| label: fig-modempre1
+#| fig-cap: "Expectations of symptom relief by Cohort and Treatment TYpe captured by pre-treatment MODEMs"
+
+Snapshot1 <- Snapshot |> dplyr::mutate(
+  MODEMQ1_Preop = forcats::fct(
+    MODEMQ1_Preop,
+    levels = c(
+    "Not applicable",
+    "Not at all likely",
+    "Slightly likely",
+    "Somewhat likely",
+    "Very likely",
+    "Extremely likely"
+  ))
+)
+
+FigModem1Pre <- ggplot(Snapshot1 |> dplyr::filter(
+  !is.na(MODEMQ1_Preop),
+  !is.na(SurgicalTreatment2)
+  ),
+  aes(x = RegistryCohortName,
+      fill = MODEMQ1_Preop)
+  ) + 
+  geom_bar(position = "fill") +
+  scale_fill_viridis_d(option = "viridis") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "bottom"
+  ) + facet_wrap(~ SurgicalTreatment2, nrow = 3)
+
+
+knitr::knit_print(FigModem1Pre)
+```
+
+```{r}
+#| label: fig-modemp3
+#| fig-cap: "Satisfaction with sleep comfort by Time Point and Cohort captured by post-operative MODEMs"
+
+FigModemP3 <- ggplot(PROMMODEM1 |> dplyr::filter(!is.na(MODEMPQ3), SurgicalTreatment2 == "Surgical"), aes(x = TimePoint, fill = MODEMPQ3)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~ RegistryCohortName) +
+  labs(#title = "Satisfaction with sleep comfort by Time Point and Cohort",
+       x = "Time Point",
+       y = "Count",
+       fill = "Outcome") +
+  scale_fill_viridis_d(option = "viridis") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "bottom"
+  )
+
+knitr::knit_print(FigModemP3)
+```
+
+## Diagnosis Tabulation
+
+```{r}
+#| label: tbl-diagnosis
+#| tbl-cap: "Summary of diagnosis labels per cohort, separated by treatment type"
+
+Diagnosis <- Snapshot1 |> 
+  dplyr::group_by(
+    RegistryCohortName,
+    DiagnosisPrimary,
+    SurgicalTreatment
+  ) |> 
+  dplyr::summarise(
+    Count = n(),
+    .groups = "drop"
+  ) |> 
+  tidyr::pivot_wider(
+    names_from = SurgicalTreatment,
+    values_from = Count,
+    values_fill = 0
+  ) |> 
+  dplyr::arrange(
+    desc(`Non-Surgical` + Surgical),  # Sort by total count
+    .by_group = FALSE
+  ) |> 
+  dplyr::group_by(RegistryCohortName) |>
+  dplyr::arrange(
+    desc(`Non-Surgical` + Surgical),
+    .by_group = TRUE
+  ) |> 
+  gt::gt(
+    rowname_col = "DiagnosisPrimary",
+    groupname_col = "RegistryCohortName",
+    row_group_as_column = TRUE
+  )
+
+knitr::knit_print(Diagnosis)
+
+```
+
+The initial tabulation (@tbl-diagnosis), shows the current cohort arrangement with the three cohorts and the primary diagnosis labels arranged in descending order of frequency. There are some modifications that could be undertaken that may better align the diagnoses to cohorts. For example, the T-series codes are generally associated with revision cases, so these could be moved to the *ShoulderGeneral.* Similarly, bicipital tendinitis, calcific tendinitis and "pain in shoulder" could also be moved to ShoulderGeneral from the RotatorCuff cohort. These diagnoses are included in this cohort originally as they can involve surgery that impacts the cuff (e.g. excision) or often present with concomitant cuff pathology.
+
+```{r}
+#| label: tbl-diagnosis2
+#| tbl-cap: "Summary of diagnosis labels per revised cohorts, separated by treatment type"
+
+Snapshot2 <- Snapshot1 |> mutate(
+  RegistryCohortName2 = case_when(
+  DiagnosisPrimary == "T84.6 - Infection and inflammatory reaction due to internal fixation device" ~ "ShoulderGeneral",
+  DiagnosisPrimary == "M75.2 Bicipital tendinitis" ~ "ShoulderGeneral",
+  DiagnosisPrimary == "M25.51 Pain in shoulder" ~ "ShoulderGeneral",
+  DiagnosisPrimary == "M75.3 Calcific tendinitis of shoulder" ~ "ShoulderGeneral",
+  stringr::str_detect(DiagnosisPrimary,"Adhesive") ~ "AdhesiveCapsulitis",
+  stringr::str_detect(DiagnosisPrimary,"arthro") ~ "ShoulderArthritis",
+  stringr::str_detect(str_to_lower(DiagnosisPrimary),"fracture") ~ "Fracture",
+  stringr::str_detect(str_to_lower(DiagnosisPrimary),"acromio") ~ "Acromioclavicular",
+.default = RegistryCohortName
+)
+) 
+
+Diagnosis2 <- Snapshot2 |> dplyr::group_by(
+    RegistryCohortName2,
+    DiagnosisPrimary,
+    SurgicalTreatment
+  ) |> 
+  dplyr::summarise(
+    Count = n(),
+    .groups = "drop"
+  ) |> 
+  tidyr::pivot_wider(
+    names_from = SurgicalTreatment,
+    values_from = Count,
+    values_fill = 0
+  ) |> 
+  dplyr::arrange(
+    desc(`Non-Surgical` + Surgical),  # Sort by total count
+    .by_group = FALSE
+  ) |> 
+  dplyr::group_by(RegistryCohortName2) |>
+  dplyr::arrange(
+    desc(`Non-Surgical` + Surgical),
+    .by_group = TRUE
+  ) |> 
+  gt::gt(
+    rowname_col = "DiagnosisPrimary",
+    groupname_col = "RegistryCohortName2",
+    row_group_as_column = TRUE
+  ) |>
+  gt::summary_rows(
+    groups = everything(),
+    columns = c(`Non-Surgical`, Surgical, "NA"),
+    fns = list(
+      "CohortTotal" = ~sum(.x, na.rm = TRUE)
+    ),
+    fmt = ~ fmt_number(.x, decimals = 0)
+  )
+
+knitr::knit_print(Diagnosis2)
+
+```
+
+The cohort definitions have been modified, as illustrated in @tbl-diagnosis2. The new cohorts have been drawn from the ShoulderGeneral diagnoses (Acromioclavicular, AdhesiveCapsulitis, Fracture), with some refinements to the GlenohumeralInstability and RotatorCuff cohorts.
+
+```{r}
+#| label: tbl-cohort2-demographics
+#| tbl-cap: "Summary of demographics by revised cohorts"
+
+TableCoh2demo <- gtsummary::tbl_summary(
+  Snapshot2 |> dplyr::filter(
+    RegistryCohortName2 != "ShoulderGeneral"
+  ) |> dplyr::select(
+    TreatmentType,
+    SurgicalTreatment2,
+    TreatmentStatus,
+    DateInitialExamination,
+    AgeAtInitialExam,
+    Sex,
+    EducationLevel_Preop,
+    #DiagnosisPrimary,
+    RegistryCohortName2,
+    EQ5D5L_IndexScore_Preop
+  ),
+  by = "RegistryCohortName2",
+  missing = "no",
+  statistic = list(
+    DateInitialExamination ~ "{min} - {max}"
+  )
+)
+
+knitr::knit_print(TableCoh2demo)
+```
+
+## Tumour Pelvis
+
+```{r}
+#| label: tbl-rc-demographics
+#| tbl-cap: "Summary of demographics in Rotator Cuff cohort"
+
+TableTPdemo <- gtsummary::tbl_summary(
+  Snapshot |> dplyr::filter(
+    RegistryCohortName == "TumourPelvis"
+  ) |> dplyr::select(
+    TreatmentType,
+    SurgicalTreatment2,
+    TreatmentStatus,
+    DateInitialExamination,
+    AgeAtInitialExam,
+    AgeAtTreatment,
+    AnalysisLabel,
+    Sex,
+   #EducationLevel_Preop,
+   # DiagnosisPrimary
+  ),
+  by = "SurgicalTreatment2",
+  missing = "no",
+  statistic = list(
+    DateInitialExamination ~ "{min} - {max}"
+  )
+)
+
+knitr::knit_print(TableTPdemo)
+```
+
+```         
+```
+
+```{r}
+#| label: fig-worc-rc
+#| fig-cap: "Summary of WORC normalised by Timepoint"
+
+preop_position <- which(levels(PROMRC$TimePoint) == "Preop")
+
+
+PROMRC2 <- dplyr::mutate(
+  PROMRC,
+  across(contains("Norm"), ~as.numeric(.))
+)
+FigureWORC_overlay <- PROMRC2 |> dplyr::filter(
+  !(is.na(SurgicalTreatment2))
+) |> ggplot(aes(y = WORCNorm, x = TimePoint, fill = SurgicalTreatment2, color = SurgicalTreatment2)) +
+  stat_halfeye(
+    alpha = 0.5,  # Transparency for overlap visibility
+    position = "identity",  # Overlay the distributions
+    na.rm = TRUE,
+    scale = 0.9  # Slightly scale down to avoid too much overlap
+  ) +
+  # Add the ellipse annotation
+  ggforce::geom_ellipse(aes(x0 = preop_position, 
+                  y0 = 70, 
+                  a = 0.3, 
+                  b = 5, 
+                  angle = 0),
+             color = "red", 
+             size = 1.2,
+             inherit.aes = FALSE) +
+  annotate("text", 
+           x = preop_position + 0.4, 
+           y = 85,
+           label = "High preop scores",
+           color = "red",
+           fontface = "bold",
+           size = 3.5) +
+  # Add appropriate scale colors
+  scale_fill_manual(values = c("Surgical" = "steelblue", "Non-Surgical" = "darkgray", "Surgery recommended" = "darkred")) +
+  scale_color_manual(values = c("Surgical" = "steelblue4", "Non-Surgical" = "dimgray", "Surgery recommended" = "darkred")) +
+  labs(
+    y = "WORC Normalised",
+    x = "Time Point",
+    fill = "Treatment",
+    color = "Treatment"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank()
+  )
+
+knitr::knit_print(FigureWORC_overlay)
+```
+
+```{r}
+#| label: fig-worcq3-rc
+#| fig-cap: "Summary of WORC Physical Q3 (weakness) by Timepoint"
+
+FigureWORCQ3_overlay <- PROMRC |> dplyr::filter(
+  !(is.na(SurgicalTreatment2))
+) |> ggplot(aes(y = WORCPhysicalQ3, x = TimePoint, fill = SurgicalTreatment2, color = SurgicalTreatment2)) +
+  stat_halfeye(
+    alpha = 0.5,  # Transparency for overlap visibility
+    position = "identity",  # Overlay the distributions
+    na.rm = TRUE,
+    scale = 0.9  # Slightly scale down to avoid too much overlap
+  ) +
+  # Add the ellipse annotation
+  # ggforce::geom_ellipse(aes(x0 = preop_position, 
+  #                 y0 = 70, 
+  #                 a = 0.3, 
+  #                 b = 5, 
+  #                 angle = 0),
+  #            color = "red", 
+  #            size = 1.2,
+  #            inherit.aes = FALSE) +
+  # annotate("text", 
+  #          x = preop_position + 0.4, 
+  #          y = 85,
+  #          label = "High preop scores",
+  #          color = "red",
+  #          fontface = "bold",
+  #          size = 3.5) +
+  # Add appropriate scale colors
+  scale_fill_manual(values = c("Surgical" = "steelblue", "Non-Surgical" = "darkgray", "Surgery recommended" = "darkred")) +
+  scale_color_manual(values = c("Surgical" = "steelblue4", "Non-Surgical" = "dimgray", "Surgery recommended" = "darkred")) +
+  labs(
+    y = "WORC Normalised",
+    x = "Time Point",
+    fill = "Treatment",
+    color = "Treatment"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank()
+  )
+
+knitr::knit_print(FigureWORCQ3_overlay)
+```
+
+Assessment of the *Rotator Cuff* cohort reveals that some patients enrolled in the cohort are scoring high on the WORC preoperatively, intraoperative data requires minimal backfilling and that there may be sufficient variation in surgical technique to warrant further investigation (e.g. tendon pathology, repair tension, augmentation).
+
+```{r}
+#| label: survival-prep-tp
+
+SnapshotTP2 <- SnapshotTP |> dplyr::mutate(
+  Status = if_else(
+    TreatmentStatus == "Failed",
+    1,
+    0
+  ),
+  EndDate = case_when(
+    !is.na(DateStatusChange) ~ DateStatusChange,
+    .default = coalesce(DateStatusChange, ymd(CurrentDate)),
+    ),
+  Duration = as.numeric(as.duration(interval(ymd(DateTreatment), ymd(EndDate))),"weeks"),
+)
+
+```
+
+```{r}
+#| label: fig-survrc
+#| fig-cap: "Survival curve for Rotator Cuff cases by treatment type"
+
+
+FigureSurvRC <- survfit2(Surv(Duration, Status) ~ SurgicalTreatment2,
+                        data = SnapshotRC2
+                        ) |> ggsurvfit(linewidth = 1) +
+  add_confidence_interval() +
+  add_risktable() +
+  add_quantile(y_value = 0.6, color = "gray50", linewidth = 0.75) +
+  scale_ggsurvfit() +
+  coord_cartesian(ylim = c(0.7, 1))
+
+knitr::knit_print(FigureSurvRC)
+
+```
+
+```{r}
+#| label: tbl-survRC
+#| tbl-cap: "Summary of Rotator Cuff Procedure Survival"
+
+TableSurvRC <- tbl_survfit(
+  survfit2(Surv(Duration, Status) ~ SurgicalTreatment2, 
+           data = SnapshotRC2),
+  times = c(1,26,52,104),
+  label_header = "**{time} Weeks**",
+  label = "Procedure Survival",
+  statistic = "{estimate} ({conf.low} - {conf.high})"
+)
+
+knitr::knit_print(TableSurvRC)
+
+```
+
+## Glenohumeral Instability
+
+```{r}
+#| label: tbl-ghi-demographics
+#| tbl-cap: "Summary of demographics in Glenohumeral Instability cohort"
+
+TableGHIdemo <- gtsummary::tbl_summary(
+  Snapshot |> dplyr::filter(
+    RegistryCohortName == "GlenohumeralInstability"
+  ) |> dplyr::select(
+    TreatmentType,
+    SurgicalTreatment2,
+    TreatmentStatus,
+    DateInitialExamination,
+    AgeAtInitialExam,
+    Sex,
+    EducationLevel_Preop,
+    DiagnosisPrimary
+  ),
+  by = "SurgicalTreatment2",
+  missing = "no",
+  statistic = list(
+    DateInitialExamination ~ "{min} - {max}"
+  )
+)
+
+knitr::knit_print(TableGHIdemo)
+```
+
+```{r}
+#| label: tbl-ghi-intraop
+#| tbl-cap: "Summary of intraoperative variables in Glenohumeral Instability cohort"
+#| eval: FALSE
+
+TableGHIsurg <- gtsummary::tbl_summary(
+  Snapshot |> dplyr::filter(
+    RegistryCohortName == "RotatorCuff",
+    SurgicalTreatment2 == "Surgical"
+  ) |> dplyr::select(
+    LabralTear:RepairAugmentation
+  ) |> mutate(
+    across(contains("TearSize"), ~as.numeric(.))
+  ),
+  missing = "no"
+)
+
+knitr::knit_print(TableGHIsurg)
+
+
+```
+
+```{r}
+
+GHIIntraop <- Snapshot |> filter(
+  RegistryCohortName == "GlenohumeralInstability",
+  SurgicalTreatment2 == "Surgical"
+)  |> dplyr::select(
+    LabralTear:RepairAugmentation
+)
+
+```
+
+```{r}
+#| label: fig-wosi-ghi
+#| fig-cap: "Summary of WOSI normalised by Timepoint for primary presentations of Glenohumeral Instability"
+
+preop_position <- which(levels(PROMGHI$TimePoint) == "Preop")
+
+FigureWOSI <- PROMGHI |> dplyr::filter(
+  !(is.na(SurgicalTreatment2)),
+  TreatmentType == "Primary"
+) |> ggplot(aes(y = WOSINorm, x = TimePoint, fill = SurgicalTreatment2, color = SurgicalTreatment2)) +
+  stat_halfeye(
+    alpha = 0.5,  # Transparency for overlap visibility
+    position = "identity",  # Overlay the distributions
+    na.rm = TRUE,
+    scale = 0.9  # Slightly scale down to avoid too much overlap
+  ) +
+  # Add the ellipse annotation
+  ggforce::geom_ellipse(
+    data = data.frame(x0 = preop_position, y0 = 70, a = 0.3, b = 5, angle = 0),
+    aes(x0 = x0, y0 = y0, a = a, b = b, angle = angle),
+    color = "red", 
+    size = 1.2,
+    inherit.aes = FALSE
+  ) +
+  annotate("text", 
+           x = preop_position + 0.4, 
+           y = 85,
+           label = "High preop scores",
+           color = "red",
+           fontface = "bold",
+           size = 3.5) +
+  # Add appropriate scale colors
+  scale_fill_manual(values = c("Surgical" = "steelblue", "Non-Surgical" = "darkgray", "Surgery recommended" = "darkred")) +
+  scale_color_manual(values = c("Surgical" = "steelblue4", "Non-Surgical" = "dimgray", "Surgery recommended" = "darkred")) +
+  labs(
+    y = "WOSI Normalised Score",
+    x = "Time Point",
+    fill = "Treatment",
+    color = "Treatment"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank()
+  )
+
+
+knitr::knit_print(FigureWOSI)
+
+```
+
+Overall, the *Glenohumeral Instability* cohort mean WOSI score does not reach the reported patient acceptable symptom state (\~ 80) on average at up to 2 years followup. Considering the missingness patterns in the data, this could be attributed to patients self-selecting into responding to PROMs.
+
+```{r}
+#| label: survival-prep-ghi
+
+SnapshotGHI2 <- SnapshotGHI|> dplyr::mutate(
+  Status = if_else(
+    TreatmentStatus == "Failed",
+    1,
+    0
+  ),
+  EndDate = case_when(
+    !is.na(DateStatusChange) ~ DateStatusChange,
+    .default = coalesce(DateStatusChange, ymd(CurrentDate)),
+    ),
+  Duration = as.numeric(as.duration(interval(ymd(DateTreatment), ymd(EndDate))),"weeks"),
+)
+
+```
+
+```{r}
+#| label: fig-survghi
+#| fig-cap: "Survival curve for Glenohumeral Instability cases by treatment type"
+
+
+FigureSurvGHI <- survfit2(Surv(Duration, Status) ~ SurgicalTreatment2,
+                        data = SnapshotGHI2
+                        ) |> ggsurvfit(linewidth = 1) +
+  add_confidence_interval() +
+  add_risktable() +
+  add_quantile(y_value = 0.6, color = "gray50", linewidth = 0.75) +
+  scale_ggsurvfit() +
+  coord_cartesian(ylim = c(0.7, 1))
+
+knitr::knit_print(FigureSurvGHI)
+
+```
+
+```{r}
+#| label: tbl-survGHI
+#| tbl-cap: "Summary of Glenohumeral Instability Procedure Survival"
+
+TableSurvGHI <- tbl_survfit(
+  survfit2(Surv(Duration, Status) ~ SurgicalTreatment2, 
+           data = SnapshotGHI2),
+  times = c(1,26,52,104),
+  label_header = "**{time} Weeks**",
+  label = "Procedure Survival",
+  statistic = "{estimate} ({conf.low} - {conf.high})"
+)
+
+knitr::knit_print(TableSurvGHI)
+
+```
+
+# Observations \| Interpretation
+
+Very few failures have been detected for GHI procedures and none have been detected at 3 years+ follow up.
+
+Patient compliance is challenging beyond 12months, particularly so for GHI presentations.
+
+# Recommendations
+
+-   Consider modifications to configuration of shoulder cohorts
+
+-   Implement strategies to improve patient engagement at later followup timepoints
+
+-   Identify supplementatl data linkage activities to improve outcomes (complications, mortality, procedure survival) at medium to long-term followup
