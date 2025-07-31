@@ -213,7 +213,7 @@ A static registry snapshot was retrieved and formatted based on the fixed date o
 gs4_auth(token = drive_token())
 
 # To get a snapshot from a specific folder (e.g., "20230415")
-specific_snapshot <- get_specific_snapshot("20250724")
+specific_snapshot <- get_specific_snapshot("20250731")
 
 
 ```
