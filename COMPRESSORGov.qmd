@@ -205,7 +205,7 @@ colnames(PatientTable) <- Patient_Col
 
 ```
 
-A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (30-Jun-2025).
+A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (29-Jul-2025).
 
 ```{r}
 
@@ -257,7 +257,7 @@ Snapshot <- openxlsx2::wb_to_df(
       "Yes",
       "No"
     ),
-    Hardware = str_extract(str_to_lower(AnalysisLabel), "\\b[a-z]{1,4}\\b")
+    Hardware = str_extract(str_to_lower(AnalysisLabel), "\\b[a-z]{1,5}\\b")
   ) |> unite(
   col = "CombID",
   sep = ".",
@@ -422,7 +422,7 @@ Cumulative recruitment over time was plotted from Registry inception to the pres
 
 ```{r}
 #| label: fig-progress
-#| fig-cap: "Cumulative (non-excluded) record creation within PRULO from inception to present"
+#| fig-cap: "Cumulative (non-excluded) record creation within COMPRESSOR from inception to present"
 
 
 RecordCount <- dplyr::summarise(
@@ -731,7 +731,7 @@ knitr::knit_print(FigureMSTS)
 
 ```{r}
 #| label: tbl-tp-demographics
-#| tbl-cap: "Summary of demographics in Rotator Cuff cohort"
+#| tbl-cap: "Summary of demographics in the Tumour Pelvis cohort"
 
 TableTPdemo <- gtsummary::tbl_summary(
   Snapshot |> dplyr::filter(
@@ -743,8 +743,11 @@ TableTPdemo <- gtsummary::tbl_summary(
     DateInitialExamination,
     AgeAtInitialExam,
     AgeAtTreatment,
-    AnalysisLabel,
     Sex2,
+    Retrospective,
+    Planned,
+    Hardware
+
    #EducationLevel_Preop,
    # DiagnosisPrimary
   ),
