@@ -9,7 +9,7 @@ number-depth: 3
 date: "2025-Jul-30"
 date-modified: "2025-Jul-30"
 
-bibliography: COMPRESSORGov references.bib
+bibliography: CompressorGov references.bib
 
 editor:
   visual
