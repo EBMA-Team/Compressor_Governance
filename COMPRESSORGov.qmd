@@ -491,7 +491,7 @@ gg_miss_fct(Snapshot |> dplyr::filter(
 
 ```
 
-Missingness for baseline PROMs (represented by VR12, common to all cohorts) is captured in @fig-baseline-prom-miss.
+Missingness for baseline PROMs (represented by VR12, common to all cohorts) is captured in @fig-baseline-miss.
 
 Overall, there are variable response rates for scores across cohorts.
 
