@@ -25,11 +25,13 @@ execute:
   message: false
 ---
 
+
 # Preamble
 
 The following analysis is a report on the activity, quality and data contained in the COMPRESSOR registry, which is described in the [registry wiki](https://sites.google.com/ebma.com.au/compressor-registry/home?authuser=0).
 
 Analysis packages were loaded initially into the *R* environment.
+
 
 ```{r}
 #| label: load-packages
@@ -77,7 +79,9 @@ pacman::p_load(# Load required packages
   
 ```
 
+
 Access to the COMPRESSOR datasets was pre-authorised.
+
 
 ```{r}
 #| label: auth2
@@ -94,7 +98,9 @@ googledrive::drive_auth(
   )
 ```
 
+
 A function was generated to retrieve files using the *googledrive* package, to call on later in the analysis for processing data imports.
+
 
 ```{r}
 #| label: folder
@@ -139,7 +145,9 @@ get_specific_snapshot <- function(folder_name, base_folder_id = base_folder_id1)
 }
 ```
 
+
 Data was retrieved from live database tables. Source files were specified and stored as global variables to call on in further functions.
+
 
 ```{r}
 #| label: live-table
@@ -205,7 +213,9 @@ colnames(PatientTable) <- Patient_Col
 
 ```
 
+
 A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (30-Jun-2025).
+
 
 ```{r}
 
@@ -265,6 +275,7 @@ STROBEInput <- openxlsx2::wb_to_df(
 
 ```
 
+
 # Context
 
 COMPRESSOR (Complex Reconstructive Surgery Outcomes Registry) is a clinical quality registry supporting the practices of one surgeon in Sydney, New South Wales. It has been in operation over two distinct periods, with upper and lower limb tumour cohorts, as well as tumour of the pelvis and reintervention arthroplasty cohorts of the hip and knee.
@@ -272,6 +283,7 @@ COMPRESSOR (Complex Reconstructive Surgery Outcomes Registry) is a clinical qual
 # Recruitment Flow by Region
 
 Flowcharts as per STROBE [@Vandenbroucke2007] and RECORD [@Benchimol2015] guidelines were generated for treatments enrolled into the Registry. Followup was set to eligibility at *any postoperative timepoint*.
+
 
 ```{r}
 
@@ -408,7 +420,9 @@ knitr::knit_print(STROBEPlot2)
 ```
 
 
+
 Cumulative recruitment over time was plotted from Registry inception to the present.
+
 
 ```{r}
 #| label: fig-progress
@@ -458,9 +472,11 @@ knitr::knit_print(cumulative_plot)
 
 ```
 
+
 # Missingness and Compliance
 
 ## Baseline
+
 
 ```{r}
 #| label: fig-fuprom-miss
@@ -481,11 +497,13 @@ gg_miss_fct(Snapshot |> dplyr::filter(
 
 ```
 
+
 Missingness for 12month PROMs (represented by VR12, common to all cohorts) is captured in @fig-fuprom-miss.
 
 Overall, there are variable response rates for scores across cohorts.
 
 ## Patient-reported Outcomes by TimePoint
+
 
 ```{r}
 min_percent <- 10
@@ -646,9 +664,11 @@ gg_miss_fct(PROMHOOS12 |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dpl
   )
 ```
 
+
 # Cohort Analysis
 
 The VR12 is a *general* health questionnaire that is presented to *all* patients enrolled in the registry.
+
 
 ```{r}
 #| label: fig-vr12-cohort
@@ -668,7 +688,9 @@ knitr::knit_print(FigureVR12)
 
 ```
 
+
 Between-cohort variability is observed for the Physical Component Score of the VR12. Most notable is the high variation within all cohorts.
+
 
 ```{r}
 #| label: fig-msts
@@ -722,7 +744,9 @@ knitr::knit_print(FigureMSTS)
 
 
 
+
 ## Tumour Pelvis
+
 
 ```{r}
 #| label: tbl-tp-demographics
@@ -752,9 +776,6 @@ TableTPdemo <- gtsummary::tbl_summary(
 
 knitr::knit_print(TableTPdemo)
 ```
-
-
-
 
 ```{r}
 #| label: survival-prep-tp
@@ -813,7 +834,9 @@ knitr::knit_print(TableSurvTP)
 
 ```
 
+
 ## Tumour Lower Limb
+
 
 ```{r}
 #| label: tbl-tll-demographics
@@ -841,7 +864,6 @@ TableTLLdemo <- gtsummary::tbl_summary(
 
 knitr::knit_print(TableTLLdemo)
 ```
-
 
 ```{r}
 
@@ -876,8 +898,6 @@ PROMBPI <- Snapshot |> dplyr::select(
 )
 
 ```
-
-
 
 ```{r}
 #| label: fig-bpi-tll
@@ -916,8 +936,6 @@ FigureBPISev <- PROMBPI |> dplyr::filter(
 knitr::knit_print(FigureBPISev)
 
 ```
-
-
 
 ```{r}
 #| label: survival-prep-tll
@@ -978,6 +996,7 @@ knitr::knit_print(TableSurvTLL)
 
 ```
 
+
 # Observations \| Interpretation
 
 
@@ -989,3 +1008,4 @@ knitr::knit_print(TableSurvTLL)
 -   Implement strategies to improve patient engagement at later followup timepoints
 
 -   Identify supplementatl data linkage activities to improve outcomes (complications, mortality, procedure survival) at medium to long-term followup
+
