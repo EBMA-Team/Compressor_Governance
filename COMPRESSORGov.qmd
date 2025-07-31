@@ -473,7 +473,7 @@ knitr::knit_print(cumulative_plot)
 ## Baseline
 
 ```{r}
-#| label: fig-fuprom-miss
+#| label: fig-baseline-miss
 #| fig-cap: "Missingness of baseline PROMs and intraoperative date by registry cohort"
 
 gg_miss_fct(Snapshot |> dplyr::filter(
@@ -491,7 +491,7 @@ gg_miss_fct(Snapshot |> dplyr::filter(
 
 ```
 
-Missingness for 12month PROMs (represented by VR12, common to all cohorts) is captured in @fig-fuprom-miss.
+Missingness for baseline PROMs (represented by VR12, common to all cohorts) is captured in @fig-baseline-prom-miss.
 
 Overall, there are variable response rates for scores across cohorts.
 
@@ -833,7 +833,9 @@ TableTLLdemo <- gtsummary::tbl_summary(
     TreatmentStatus,
     DateInitialExamination,
     AgeAtInitialExam,
-    Sex2
+    Sex2,
+    Retrospective,
+    Hardware
     # EducationLevel_Preop,
     # DiagnosisPrimary
   ),
