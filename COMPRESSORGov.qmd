@@ -1029,7 +1029,8 @@ knitr::knit_print(TableGMRSdemo)
 
 SnapshotGMRS <- Snapshot |> dplyr::filter(
   Hardware == "gmrs" | Hardware == "mrh",
-  SurgicalTreatment2 == "Surgical"
+  SurgicalTreatment2 == "Surgical",
+  Planned != "Yes"
 ) |> mutate(
   TreatmentType2 = if_else(
     stringr::str_detect(TreatmentType, "Revision"),
@@ -1089,7 +1090,64 @@ knitr::knit_print(TableSurvGMRS)
 
 ```
 
+```{r}
+PROMMSTS2 <- left_join(
+  PROMMSTS,
+  SnapshotGMRS |> dplyr::select(
+    TreatmentID,
+    Hardware,
+    TreatmentType2
+  ),
+   by = "TreatmentID"
+) |> filter(
+  !is.na(Hardware)
+)
+```
 
+
+```{r}
+#| label: fig-msts2
+#| fig-cap: "Summary of MSTS by Timepoint"
+
+#preop_position <- which(levels(PROMQDASH$TimePoint) == "Preop")
+
+FigureMSTS2 <- PROMMSTS2 |> filter(
+  RegistryCohortName != "ReinterventionTHA"
+  ) |> ggplot(aes(y = MSTSLowerTotal, x = TimePoint, fill = TreatmentType2, color = TreatmentType2)) +
+  stat_halfeye(
+    alpha = 0.5,  # Transparency for overlap visibility
+    position = "identity",  # Overlay the distributions
+    na.rm = TRUE,
+    scale = 0.9  # Slightly scale down to avoid too much overlap
+  ) +
+  # Add appropriate scale colors "Surgery recommended" = "darkred"
+  scale_fill_manual(values = c(
+    "Primary" = "steelblue", 
+    "Revision" = "darkred",
+    )
+    ) +
+  scale_color_manual(values = c(
+    "Primary" = "steelblue", 
+    "Revision" = "darkred",
+    )
+    ) +
+  labs(
+    y = "MSTSLowerTotal",
+    x = "Time Point",
+    fill = "Treatment Type",
+    color = "Treatment Type"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) + facet_wrap(
+    ~RegistryCohortName, ncol = 2
+  )
+
+knitr::knit_print(FigureMSTS2)
+```
 
 # Observations \| Interpretation
 
