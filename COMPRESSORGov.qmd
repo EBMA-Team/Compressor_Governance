@@ -442,10 +442,10 @@ RecordCount <- dplyr::summarise(
   )
 
 cumulative_plot <- ggplot(RecordCount, aes(x = PatientCreationDate, y = CumulativeCount)) +
-  geom_line(color = "#2c3e50", size = 1) +
+  geom_line(color = "#2c3e50", linewidth = 1) +
   # Add the spline fit with confidence interval
   geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs"), 
-              color = "#e74c3c", size = 1.2, se = TRUE, fill = "#e74c3c", alpha = 0.2) +
+              color = "#e74c3c", linewidth = 1.2, se = TRUE, fill = "#e74c3c", alpha = 0.2) +
   geom_point(color = "#3498db", size = 1) +
   # Add labels and title
   labs(
@@ -476,7 +476,14 @@ knitr::knit_print(cumulative_plot)
 #| label: fig-baseline-miss
 #| fig-cap: "Missingness of baseline PROMs and intraoperative date by registry cohort"
 
-gg_miss_fct(Snapshot |> dplyr::filter(
+samplesizeBase <- Snapshot |> 
+  dplyr::filter(
+    EligibleAtPreop == "Yes",
+    SurgicalTreatment2 == "Surgical"
+  ) |> 
+  dplyr::count(RegistryCohortName, name = "n")
+
+FigureMissBase <- gg_miss_fct(Snapshot |> dplyr::filter(
       EligibleAtPreop == "Yes",
       SurgicalTreatment2 == "Surgical"
       ) |> dplyr::select(
@@ -486,8 +493,19 @@ gg_miss_fct(Snapshot |> dplyr::filter(
         RegistryCohortName
         ), 
       RegistryCohortName
-      )
+      ) + scale_fill_viridis_c(
+    option = "plasma",  # or "inferno", "magma", "cividis"
+    name = "% Missing",
+    limits = c(50, 100)  # Set limits from 0% to 100%
+  ) +
+  geom_text(data = samplesizeBase, 
+            aes(x = RegistryCohortName, y = 0.7, label = paste0("n=", n)),
+            inherit.aes = FALSE,
+            color = "white", 
+            fontface = "bold",
+            size = 3)
 
+knitr::knit_print(FigureMissBase)
 
 ```
 
