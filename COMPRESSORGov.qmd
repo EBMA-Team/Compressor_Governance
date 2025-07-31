@@ -418,7 +418,6 @@ knitr::knit_print(STROBEPlot2)
 
 ```
 
-
 Cumulative recruitment over time was plotted from Registry inception to the present.
 
 ```{r}
@@ -728,11 +727,6 @@ FigureMSTS <- PROMMSTS |> dplyr::filter(
 knitr::knit_print(FigureMSTS)
 ```
 
-
-
-
-
-
 ## Tumour Pelvis
 
 ```{r}
@@ -763,9 +757,6 @@ TableTPdemo <- gtsummary::tbl_summary(
 
 knitr::knit_print(TableTPdemo)
 ```
-
-
-
 
 ```{r}
 #| label: survival-prep-tp
@@ -853,7 +844,6 @@ TableTLLdemo <- gtsummary::tbl_summary(
 knitr::knit_print(TableTLLdemo)
 ```
 
-
 ```{r}
 
 
@@ -887,8 +877,6 @@ PROMBPI <- Snapshot |> dplyr::select(
 )
 
 ```
-
-
 
 ```{r}
 #| label: fig-bpi-tll
@@ -927,8 +915,6 @@ FigureBPISev <- PROMBPI |> dplyr::filter(
 knitr::knit_print(FigureBPISev)
 
 ```
-
-
 
 ```{r}
 #| label: survival-prep-tll
@@ -1054,7 +1040,6 @@ SnapshotGMRS2 <- SnapshotGMRS |> dplyr::mutate(
 
 ```
 
-
 ```{r}
 #| label: fig-survgmrs
 #| fig-cap: "Survival curve for GMRS-MRH cases by treatment type"
@@ -1104,7 +1089,6 @@ PROMMSTS2 <- left_join(
 )
 ```
 
-
 ```{r}
 #| label: fig-msts2
 #| fig-cap: "Summary of MSTS by Timepoint"
@@ -1123,12 +1107,12 @@ FigureMSTS2 <- PROMMSTS2 |> filter(
   # Add appropriate scale colors "Surgery recommended" = "darkred"
   scale_fill_manual(values = c(
     "Primary" = "steelblue", 
-    "Revision" = "darkred",
+    "Revision" = "darkred"
     )
     ) +
   scale_color_manual(values = c(
     "Primary" = "steelblue", 
-    "Revision" = "darkred",
+    "Revision" = "darkred"
     )
     ) +
   labs(
@@ -1149,14 +1133,80 @@ FigureMSTS2 <- PROMMSTS2 |> filter(
 knitr::knit_print(FigureMSTS2)
 ```
 
+```{r}
+PROMVR122 <- left_join(
+  PROMVR12,
+  SnapshotGMRS |> dplyr::select(
+    TreatmentID,
+    Hardware,
+    TreatmentType2
+  ),
+   by = "TreatmentID"
+) |> filter(
+  !is.na(Hardware)
+)
+```
+
+```{r}
+#| label: fig-vr122
+#| fig-cap: "Summary of VR12 by Timepoint"
+
+#preop_position <- which(levels(PROMQDASH$TimePoint) == "Preop")
+
+FigureVR122 <- PROMVR122 |> filter(
+  RegistryCohortName != "ReinterventionTHA"
+  ) |> ggplot(aes(y = VR12PCS, x = TimePoint, fill = TreatmentType2, color = TreatmentType2)) +
+  stat_halfeye(
+    alpha = 0.5,  # Transparency for overlap visibility
+    position = "identity",  # Overlay the distributions
+    na.rm = TRUE,
+    scale = 0.9  # Slightly scale down to avoid too much overlap
+  ) +
+  # Add appropriate scale colors "Surgery recommended" = "darkred"
+  scale_fill_manual(values = c(
+    "Primary" = "steelblue", 
+    "Revision" = "darkred"
+    )
+    ) +
+  scale_color_manual(values = c(
+    "Primary" = "steelblue", 
+    "Revision" = "darkred"
+    )
+    ) +
+  labs(
+    y = "MSTSLowerTotal",
+    x = "Time Point",
+    fill = "Treatment Type",
+    color = "Treatment Type"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) + facet_wrap(
+    ~RegistryCohortName, ncol = 2
+  )
+
+knitr::knit_print(FigureVR122)
+```
+
 # Observations \| Interpretation
 
+-   PROMs feedback remains relatively sparse and should be interpreted with some caution
 
+-   The followup of cases included in the registry remains largely cross-sectional, with few instances of serial capture of recovery
+
+-   There are some noticeable trends with respect to pain (largely moderate at each timepoint) and physical function over time (linear decay for tumour lower limb) that point to the challenging recovery patients face after treatment.
 
 # Recommendations
 
--   Consider modifications to configuration of shoulder cohorts
+-   Continuing efforts to retrieve PROMs information from patients
+
+-   Consider capture of intraoperative data on prospective or retrospective cases
+
+-   Refine diagnosis coding within cohorts
 
 -   Implement strategies to improve patient engagement at later followup timepoints
 
--   Identify supplementatl data linkage activities to improve outcomes (complications, mortality, procedure survival) at medium to long-term followup
+-   Identify additional opportunities for local/state data linkage activities to supplement outcomes tracking (complications, mortality, procedure survival)
