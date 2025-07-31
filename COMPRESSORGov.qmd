@@ -998,6 +998,7 @@ knitr::knit_print(TableSurvTLL)
 TableGMRSdemo <- gtsummary::tbl_summary(
   Snapshot |> dplyr::filter(
     stringr::str_detect(str_to_lower(Hardware), "gmrs|mrh"),
+    RegistryCohortName != "TumourUpperLimb"
     
   ) |> dplyr::select(
     RegistryCohortName,
@@ -1017,10 +1018,78 @@ TableGMRSdemo <- gtsummary::tbl_summary(
   statistic = list(
     DateInitialExamination ~ "{min} - {max}"
   )
-)
+) |>
+  add_overall()
 
 knitr::knit_print(TableGMRSdemo)
 ```
+
+```{r}
+#| label: survival-prep-gmrs
+
+SnapshotGMRS <- Snapshot |> dplyr::filter(
+  Hardware == "gmrs" | Hardware == "mrh",
+  SurgicalTreatment2 == "Surgical"
+) |> mutate(
+  TreatmentType2 = if_else(
+    stringr::str_detect(TreatmentType, "Revision"),
+    "Revision",
+    "Primary"
+  )
+)
+
+SnapshotGMRS2 <- SnapshotGMRS |> dplyr::mutate(
+  Status = if_else(
+    TreatmentStatus == "Failed",
+    1,
+    0
+  ),
+  EndDate = case_when(
+    !is.na(DateStatusChange) ~ DateStatusChange,
+    .default = coalesce(DateStatusChange, ymd(CurrentDate)),
+    ),
+  Duration = as.numeric(as.duration(interval(ymd(DateTreatment), ymd(EndDate))),"years"),
+)
+
+```
+
+
+```{r}
+#| label: fig-survgmrs
+#| fig-cap: "Survival curve for GMRS-MRH cases by treatment type"
+
+
+FigureSurvGMRS <- survfit2(Surv(Duration, Status) ~ TreatmentType2,
+                        data = SnapshotGMRS2
+                        ) |> ggsurvfit(linewidth = 1) +
+  add_confidence_interval() +
+  add_risktable() +
+  add_quantile(y_value = 0.6, color = "gray50", linewidth = 0.75) +
+  scale_ggsurvfit() +
+  coord_cartesian(ylim = c(0.2, 1))
+
+knitr::knit_print(FigureSurvGMRS)
+
+```
+
+```{r}
+#| label: tbl-survgmrs
+#| tbl-cap: "Summary of GMRS-MRH Procedure Survival"
+
+TableSurvGMRS <- tbl_survfit(
+  survfit2(Surv(Duration, Status) ~ TreatmentType2, 
+           data = SnapshotGMRS2),
+  times = c(1,2,5,10),
+  label_header = "**{time} Years**",
+  label = "Procedure Survival",
+  statistic = "{estimate} ({conf.low} - {conf.high})"
+)
+
+knitr::knit_print(TableSurvGMRS)
+
+```
+
+
 
 # Observations \| Interpretation
 
