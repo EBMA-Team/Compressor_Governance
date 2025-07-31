@@ -246,7 +246,18 @@ Snapshot <- openxlsx2::wb_to_df(
       stringr::str_detect(str_to_lower(Sex), "f"),
       "Female",
       "Male"
-    )
+    ),
+    Retrospective = if_else(
+      stringr::str_detect(str_to_lower(AnalysisLabel), "retrospective", negate = TRUE) | is.na(AnalysisLabel),
+      "No",
+      "Yes"
+    ),
+    Planned = if_else(
+      stringr::str_detect(str_to_lower(AnalysisLabel), "plan"),
+      "Yes",
+      "No"
+    ),
+    Hardware = str_extract(str_to_lower(AnalysisLabel), "\\b[a-z]{1,4}\\b")
   ) |> unite(
   col = "CombID",
   sep = ".",
@@ -817,7 +828,7 @@ knitr::knit_print(TableSurvTP)
 
 ```{r}
 #| label: tbl-tll-demographics
-#| tbl-cap: "Summary of demographics in Glenohumeral Instability cohort"
+#| tbl-cap: "Summary of demographics in Tumour Lower Limb cohort"
 
 TableTLLdemo <- gtsummary::tbl_summary(
   Snapshot |> dplyr::filter(
@@ -976,6 +987,39 @@ TableSurvTLL <- tbl_survfit(
 
 knitr::knit_print(TableSurvTLL)
 
+```
+
+## GMRS-MRH
+
+```{r}
+#| label: tbl-gmrs-demographics
+#| tbl-cap: "Summary of demographics in GMRS-MRH cohort"
+
+TableGMRSdemo <- gtsummary::tbl_summary(
+  Snapshot |> dplyr::filter(
+    stringr::str_detect(str_to_lower(Hardware), "gmrs|mrh"),
+    
+  ) |> dplyr::select(
+    RegistryCohortName,
+    TreatmentType,
+    SurgicalTreatment2,
+    TreatmentStatus,
+    DateInitialExamination,
+    AgeAtInitialExam,
+    Sex2,
+    Hardware,
+    Retrospective
+    # EducationLevel_Preop,
+    # DiagnosisPrimary
+  ),
+  by = "RegistryCohortName",
+  missing = "no",
+  statistic = list(
+    DateInitialExamination ~ "{min} - {max}"
+  )
+)
+
+knitr::knit_print(TableGMRSdemo)
 ```
 
 # Observations \| Interpretation
