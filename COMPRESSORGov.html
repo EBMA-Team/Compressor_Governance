@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Corey Scholes">
-<meta name="dcterms.date" content="2025-07-30">
+<meta name="dcterms.date" content="2025-07-31">
 
 <title>COMPRESSOR_Governance</title>
 <style>
@@ -107,14 +107,14 @@ div.csl-indent {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">July 30, 2025</p>
+      <p class="date">July 31, 2025</p>
     </div>
   </div>
   
     <div>
     <div class="quarto-title-meta-heading">Modified</div>
     <div class="quarto-title-meta-contents">
-      <p class="date-modified">July 30, 2025</p>
+      <p class="date-modified">July 31, 2025</p>
     </div>
   </div>
     
@@ -132,11 +132,16 @@ div.csl-indent {
 <p>Access to the COMPRESSOR datasets was pre-authorised.</p>
 <p>A function was generated to retrieve files using the <em>googledrive</em> package, to call on later in the analysis for processing data imports.</p>
 <p>Data was retrieved from live database tables. Source files were specified and stored as global variables to call on in further functions.</p>
-<p>A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (29-Jul-2025).</p>
+<p>A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (31-Jul-2025).</p>
 </section>
 <section id="context" class="level1" data-number="2">
 <h1 data-number="2"><span class="header-section-number">2</span> Context</h1>
-<p>COMPRESSOR (Complex Reconstructive Surgery Outcomes Registry) is a clinical quality registry supporting the practices of one surgeon in Sydney, New South Wales. It has been in operation over two distinct periods, with upper and lower limb tumour cohorts, as well as tumour of the pelvis and reintervention arthroplasty cohorts of the hip and knee.</p>
+<p>COMPRESSOR (Complex Reconstructive Surgery Outcomes Registry) is a clinical quality registry supporting the practices of one surgeon in Sydney, New South Wales. It has been in operation over two distinct periods, with upper and lower limb tumour cohorts, as well as tumour of the pelvis and reintervention arthroplasty cohorts of the hip and knee. The periods that the registry has been actively collecting PROMs;</p>
+<ol type="1">
+<li><p>25-Feb-2022 to 29-Sep-2022</p></li>
+<li><p>27-Mar-2025 to present</p></li>
+</ol>
+<p>It should be noted that collection of PROMs has been heavily restricted for this registry due to concerns over appropriateness to follow up patients at high-risk of mortality or other contraindications for completing scores. These restrictions have only recently been lifted, and only then for cases receiving hardware components of interest (Ossis, Stryker GMRS-MRH).</p>
 </section>
 <section id="recruitment-flow-by-region" class="level1" data-number="3">
 <h1 data-number="3"><span class="header-section-number">3</span> Recruitment Flow by Region</h1>
@@ -169,6 +174,33 @@ Figure&nbsp;2: Flowchart of extraction and followup of surgical sample from the 
 </div>
 </div>
 </div>
+<p>The flowcharts were separated into two components (<a href="#fig-strobe-cohort1" class="quarto-xref">Figure&nbsp;1</a> and <a href="#fig-strobe-cohort2" class="quarto-xref">Figure&nbsp;2</a>) and exclusions noted for patients that were labelled as a procedure failure.</p>
+<div id="procedurefailure" class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>A procedure failure is defined by a terminology in the clinical letter and/or a revision case booked that affects the previously operated joint region. The general definition for arthroplasty cases as per the NJRR was used, whereby removal of any significant component of the existing prosthesis with replacement was deemed a failure of the preceding arthroplasty. In the case of infections treated with long-term antibiotics, where the preceding surgical procedure was intended to treat an existing infection, these cases were failed. In cases where DAIR with antibiotic therapy was used for non-septic revisions or primary cases in which an infection has been detected, these have been noted as complications without failing the preceding treatment.</p>
+</div>
+</div>
+<div id="progressionend" class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Treatment progression end is a term to denote that a treatment record is no longer being actively tracked by the registry team with respect to clinical outcomes or patient-reported outcomes. In this registry, the majority of cases are deceased, or are not contactable by the registry. A smaller number are stage 1 revisions that have transition to stage 2.</p>
+</div>
+</div>
 <p>Cumulative recruitment over time was plotted from Registry inception to the present.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -184,11 +216,13 @@ Figure&nbsp;3: Cumulative (non-excluded) record creation within COMPRESSOR from 
 </div>
 </div>
 </div>
+<p>The non-linear recruitment progression illustrated in <a href="#fig-progress" class="quarto-xref">Figure&nbsp;3</a> denotes the distinct periods of operation of COMPRESSOR, combined with periods of retrospective chart review of key patient subgroups. The recent increase in recruitment has been facilitated by some reorganisation of the cohort structure of the registry. This has had the side effect of increasing the PROMs eligible pool at the relevant time points.</p>
 </section>
 <section id="missingness-and-compliance" class="level1" data-number="4">
 <h1 data-number="4"><span class="header-section-number">4</span> Missingness and Compliance</h1>
 <section id="baseline" class="level2" data-number="4.1">
 <h2 data-number="4.1" class="anchored" data-anchor-id="baseline"><span class="header-section-number">4.1</span> Baseline</h2>
+<p>The COMPRESSOR registry has a patchy history of baseline capture for relevant cohorts. A large proportion of those eligible for baseline capture have been due to their enrolment during the “active” periods of the registry, but not necessarily when the PROMs component of the registry has been active. This has created challenges in determining the eligibility of records for baseline capture.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div id="fig-baseline-miss" class="quarto-figure quarto-figure-center quarto-float anchored">
@@ -203,11 +237,11 @@ Figure&nbsp;4: Missingness of baseline PROMs by registry cohort
 </div>
 </div>
 </div>
-<p>Missingness for baseline PROMs (represented by VR12, common to all cohorts) is captured in <a href="#fig-baseline-miss" class="quarto-xref">Figure&nbsp;4</a>.</p>
-<p>Overall, there are variable response rates for scores across cohorts.</p>
+<p>Missingness for baseline PROMs (represented by VR12, common to all cohorts) is captured in <a href="#fig-baseline-miss" class="quarto-xref">Figure&nbsp;4</a>. Overall, the eligible pool remains small for many cohorts for baseline capture and response rates vary between cohorts.</p>
 </section>
 <section id="patient-reported-outcomes-by-timepoint" class="level2" data-number="4.2">
 <h2 data-number="4.2" class="anchored" data-anchor-id="patient-reported-outcomes-by-timepoint"><span class="header-section-number">4.2</span> Patient-reported Outcomes by TimePoint</h2>
+<p>As the registry has been running for a relatively short period of time, the followup PROMs capture is best described as cross-sectional rather than longitudinal, in that there are few treatment records eligible for multiple timepoints in the follow up schedule.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div id="fig-vr12-miss" class="quarto-figure quarto-figure-center quarto-float anchored">
@@ -220,6 +254,20 @@ Figure&nbsp;5: Missingness of VR12 by Timepoint across all cohorts
 </figcaption>
 </figure>
 </div>
+</div>
+</div>
+<p>The VR12 is the first score presented to patients at each timepoint, but is not presented at every timepoint for every cohort. The variable capture between timepoints illustrated in <a href="#fig-vr12-miss" class="quarto-xref">Figure&nbsp;5</a> may reflect a number of underlying factors (cohort differences in engagement, mode of communication, whether it is the first attempt at followup).</p>
+<div id="eligibility" class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Eligibility for PROMs capture had to be calculated by determining the date on which the record was created, the date windows for each follow-up time-point and comparing these to the active periods of the registry operation. The eligible pool of treatments varies depending on how the active periods of PROMs collection line up with the follow-up schedule windows.</p>
 </div>
 </div>
 <div class="cell">
@@ -236,6 +284,7 @@ Figure&nbsp;6: Missingness of MSTS by Timepoint cohort
 </div>
 </div>
 </div>
+<p>The MSTS (<a href="#fig-msts-miss" class="quarto-xref">Figure&nbsp;6</a>) is presented to TumourPelvis, TumourLowerLimb and ReinterventionTKA cohorts at every followup timepoint. The medium to long-term timepoints present ongoing challenges for re-establishing patient contact by email, with only some cases appearing on the GMRS followup list (N ~ 30 each for the 60months and 120months windows - see below).</p>
 <div class="cell">
 <div class="cell-output-display">
 <div id="fig-hoos12-miss" class="quarto-figure quarto-figure-center quarto-float anchored">
@@ -250,11 +299,12 @@ Figure&nbsp;7: Missingness of HOOS12 by Timepoint in Surgical Cases of Reinterve
 </div>
 </div>
 </div>
+<p>The HOOS12 (<a href="#fig-hoos12-miss" class="quarto-xref">Figure&nbsp;7</a>) is presented only to the ReinterventionTHA cohort at all of the registry timepoints. The reduced capture preoperatively may be due to a number of underlying factors which are not yet clear. It may be that the cohort selection within the system has been too slow to capture patients prior to surgery or that patients are dropping out before filling in the HOOS (questionnaire fatigue) within the questionnaire pack.</p>
 </section>
 </section>
 <section id="cohort-analysis" class="level1" data-number="5">
 <h1 data-number="5"><span class="header-section-number">5</span> Cohort Analysis</h1>
-<p>The VR12 is a <em>general</em> health questionnaire that is presented to <em>all</em> patients enrolled in the registry.</p>
+<p>The VR12 is a <em>general</em> health questionnaire that is presented to <em>all</em> patients enrolled in the registry. It comprises two components to the score, <em>Physical</em> and <em>Mental</em>.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div id="fig-vr12-cohort" class="quarto-figure quarto-figure-center quarto-float anchored">
@@ -263,13 +313,13 @@ Figure&nbsp;7: Missingness of HOOS12 by Timepoint in Surgical Cases of Reinterve
 <img src="COMPRESSORGov_files/figure-html/fig-vr12-cohort-1.png" class="img-fluid figure-img" width="672">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-vr12-cohort-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;8: Summary of VR12 at 12months by cohort
+Figure&nbsp;8: Summary (median with interquartile ranges) of VR12 Physical Component Score at 12months by cohort
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
-<p>Between-cohort variability is observed for the Physical Component Score of the VR12. Most notable is the high variation within all cohorts.</p>
+<p>Between-cohort variability is observed for the Physical Component Score of the VR12 (<a href="#fig-vr12-cohort" class="quarto-xref">Figure&nbsp;8</a>). Most notable is the high variation within all cohorts. Interestingly, the TumourPelvis cohort presents in a bimodal distribution, with some patients with good physical function while others are quite low.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div id="fig-msts" class="quarto-figure quarto-figure-center quarto-float anchored">
@@ -284,8 +334,23 @@ Figure&nbsp;9: Summary of MSTS by Timepoint
 </div>
 </div>
 </div>
+<p>Athough the capture for MSTS remains sparse and largely cross-sectional, a pattern of linear decrease in the median MSTS score can be observed for the TumourLowerLimb cohort in <a href="#fig-msts" class="quarto-xref">Figure&nbsp;9</a>. The improved median score at the 10 year follow-up may reflect the impact of survivor bias on the PROMs results in this cohort.</p>
+<div id="survivorbias" class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Survivor bias is the systematic alteration of outcome measures due to the relationship between the measure and the status of the patient at followup, mediated by the length of followup. The longer the followup, the less likely that low functioning patients have survived long enough for the registry to seek PROMs from them.</p>
+</div>
+</div>
 <section id="tumour-pelvis" class="level2" data-number="5.1">
 <h2 data-number="5.1" class="anchored" data-anchor-id="tumour-pelvis"><span class="header-section-number">5.1</span> Tumour Pelvis</h2>
+<p>The tumour pelvis cohort included in this report include all cases presenting with abnormal growths directly interacting with the bones of the pelvis. While this contains Ossis cases, these are not the majority of cases included.</p>
 <div class="cell">
 <div id="tbl-tp-demographics" class="cell quarto-float anchored">
 <figure class="quarto-float quarto-float-tbl figure">
@@ -294,23 +359,23 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
 </figcaption>
 <div aria-describedby="tbl-tp-demographics-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div class="cell-output-display">
-<div id="slskqllbeb" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#slskqllbeb table {
+<div id="gbjzziqhuv" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#gbjzziqhuv table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#slskqllbeb thead, #slskqllbeb tbody, #slskqllbeb tfoot, #slskqllbeb tr, #slskqllbeb td, #slskqllbeb th {
+#gbjzziqhuv thead, #gbjzziqhuv tbody, #gbjzziqhuv tfoot, #gbjzziqhuv tr, #gbjzziqhuv td, #gbjzziqhuv th {
   border-style: none;
 }
 
-#slskqllbeb p {
+#gbjzziqhuv p {
   margin: 0;
   padding: 0;
 }
 
-#slskqllbeb .gt_table {
+#gbjzziqhuv .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -336,12 +401,12 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   border-left-color: #D3D3D3;
 }
 
-#slskqllbeb .gt_caption {
+#gbjzziqhuv .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#slskqllbeb .gt_title {
+#gbjzziqhuv .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -353,7 +418,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   border-bottom-width: 0;
 }
 
-#slskqllbeb .gt_subtitle {
+#gbjzziqhuv .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -365,7 +430,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   border-top-width: 0;
 }
 
-#slskqllbeb .gt_heading {
+#gbjzziqhuv .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -377,13 +442,13 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   border-right-color: #D3D3D3;
 }
 
-#slskqllbeb .gt_bottom_border {
+#gbjzziqhuv .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#slskqllbeb .gt_col_headings {
+#gbjzziqhuv .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -398,7 +463,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   border-right-color: #D3D3D3;
 }
 
-#slskqllbeb .gt_col_heading {
+#gbjzziqhuv .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -418,7 +483,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   overflow-x: hidden;
 }
 
-#slskqllbeb .gt_column_spanner_outer {
+#gbjzziqhuv .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -430,15 +495,15 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   padding-right: 4px;
 }
 
-#slskqllbeb .gt_column_spanner_outer:first-child {
+#gbjzziqhuv .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#slskqllbeb .gt_column_spanner_outer:last-child {
+#gbjzziqhuv .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#slskqllbeb .gt_column_spanner {
+#gbjzziqhuv .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -450,11 +515,11 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   width: 100%;
 }
 
-#slskqllbeb .gt_spanner_row {
+#gbjzziqhuv .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#slskqllbeb .gt_group_heading {
+#gbjzziqhuv .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -480,7 +545,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   text-align: left;
 }
 
-#slskqllbeb .gt_empty_group_heading {
+#gbjzziqhuv .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -495,15 +560,15 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   vertical-align: middle;
 }
 
-#slskqllbeb .gt_from_md > :first-child {
+#gbjzziqhuv .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#slskqllbeb .gt_from_md > :last-child {
+#gbjzziqhuv .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#slskqllbeb .gt_row {
+#gbjzziqhuv .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -522,7 +587,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   overflow-x: hidden;
 }
 
-#slskqllbeb .gt_stub {
+#gbjzziqhuv .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -535,7 +600,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   padding-right: 5px;
 }
 
-#slskqllbeb .gt_stub_row_group {
+#gbjzziqhuv .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -549,15 +614,15 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   vertical-align: top;
 }
 
-#slskqllbeb .gt_row_group_first td {
+#gbjzziqhuv .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#slskqllbeb .gt_row_group_first th {
+#gbjzziqhuv .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#slskqllbeb .gt_summary_row {
+#gbjzziqhuv .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -567,16 +632,16 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   padding-right: 5px;
 }
 
-#slskqllbeb .gt_first_summary_row {
+#gbjzziqhuv .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#slskqllbeb .gt_first_summary_row.thick {
+#gbjzziqhuv .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#slskqllbeb .gt_last_summary_row {
+#gbjzziqhuv .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -586,7 +651,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   border-bottom-color: #D3D3D3;
 }
 
-#slskqllbeb .gt_grand_summary_row {
+#gbjzziqhuv .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -596,7 +661,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   padding-right: 5px;
 }
 
-#slskqllbeb .gt_first_grand_summary_row {
+#gbjzziqhuv .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -606,7 +671,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   border-top-color: #D3D3D3;
 }
 
-#slskqllbeb .gt_last_grand_summary_row_top {
+#gbjzziqhuv .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -616,11 +681,11 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   border-bottom-color: #D3D3D3;
 }
 
-#slskqllbeb .gt_striped {
+#gbjzziqhuv .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#slskqllbeb .gt_table_body {
+#gbjzziqhuv .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -629,7 +694,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   border-bottom-color: #D3D3D3;
 }
 
-#slskqllbeb .gt_footnotes {
+#gbjzziqhuv .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -643,7 +708,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   border-right-color: #D3D3D3;
 }
 
-#slskqllbeb .gt_footnote {
+#gbjzziqhuv .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -652,7 +717,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   padding-right: 5px;
 }
 
-#slskqllbeb .gt_sourcenotes {
+#gbjzziqhuv .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -666,7 +731,7 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   border-right-color: #D3D3D3;
 }
 
-#slskqllbeb .gt_sourcenote {
+#gbjzziqhuv .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -674,72 +739,72 @@ Table&nbsp;1: Summary of demographics in the Tumour Pelvis cohort
   padding-right: 5px;
 }
 
-#slskqllbeb .gt_left {
+#gbjzziqhuv .gt_left {
   text-align: left;
 }
 
-#slskqllbeb .gt_center {
+#gbjzziqhuv .gt_center {
   text-align: center;
 }
 
-#slskqllbeb .gt_right {
+#gbjzziqhuv .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#slskqllbeb .gt_font_normal {
+#gbjzziqhuv .gt_font_normal {
   font-weight: normal;
 }
 
-#slskqllbeb .gt_font_bold {
+#gbjzziqhuv .gt_font_bold {
   font-weight: bold;
 }
 
-#slskqllbeb .gt_font_italic {
+#gbjzziqhuv .gt_font_italic {
   font-style: italic;
 }
 
-#slskqllbeb .gt_super {
+#gbjzziqhuv .gt_super {
   font-size: 65%;
 }
 
-#slskqllbeb .gt_footnote_marks {
+#gbjzziqhuv .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#slskqllbeb .gt_asterisk {
+#gbjzziqhuv .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#slskqllbeb .gt_indent_1 {
+#gbjzziqhuv .gt_indent_1 {
   text-indent: 5px;
 }
 
-#slskqllbeb .gt_indent_2 {
+#gbjzziqhuv .gt_indent_2 {
   text-indent: 10px;
 }
 
-#slskqllbeb .gt_indent_3 {
+#gbjzziqhuv .gt_indent_3 {
   text-indent: 15px;
 }
 
-#slskqllbeb .gt_indent_4 {
+#gbjzziqhuv .gt_indent_4 {
   text-indent: 20px;
 }
 
-#slskqllbeb .gt_indent_5 {
+#gbjzziqhuv .gt_indent_5 {
   text-indent: 25px;
 }
 
-#slskqllbeb .katex-display {
+#gbjzziqhuv .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#slskqllbeb div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#gbjzziqhuv div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -909,23 +974,23 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
 </figcaption>
 <div aria-describedby="tbl-survTP-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div class="cell-output-display">
-<div id="cmgamqcnlq" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#cmgamqcnlq table {
+<div id="ndwyscwtgw" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ndwyscwtgw table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#cmgamqcnlq thead, #cmgamqcnlq tbody, #cmgamqcnlq tfoot, #cmgamqcnlq tr, #cmgamqcnlq td, #cmgamqcnlq th {
+#ndwyscwtgw thead, #ndwyscwtgw tbody, #ndwyscwtgw tfoot, #ndwyscwtgw tr, #ndwyscwtgw td, #ndwyscwtgw th {
   border-style: none;
 }
 
-#cmgamqcnlq p {
+#ndwyscwtgw p {
   margin: 0;
   padding: 0;
 }
 
-#cmgamqcnlq .gt_table {
+#ndwyscwtgw .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -951,12 +1016,12 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   border-left-color: #D3D3D3;
 }
 
-#cmgamqcnlq .gt_caption {
+#ndwyscwtgw .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#cmgamqcnlq .gt_title {
+#ndwyscwtgw .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -968,7 +1033,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   border-bottom-width: 0;
 }
 
-#cmgamqcnlq .gt_subtitle {
+#ndwyscwtgw .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -980,7 +1045,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   border-top-width: 0;
 }
 
-#cmgamqcnlq .gt_heading {
+#ndwyscwtgw .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -992,13 +1057,13 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   border-right-color: #D3D3D3;
 }
 
-#cmgamqcnlq .gt_bottom_border {
+#ndwyscwtgw .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#cmgamqcnlq .gt_col_headings {
+#ndwyscwtgw .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1013,7 +1078,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   border-right-color: #D3D3D3;
 }
 
-#cmgamqcnlq .gt_col_heading {
+#ndwyscwtgw .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1033,7 +1098,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   overflow-x: hidden;
 }
 
-#cmgamqcnlq .gt_column_spanner_outer {
+#ndwyscwtgw .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1045,15 +1110,15 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   padding-right: 4px;
 }
 
-#cmgamqcnlq .gt_column_spanner_outer:first-child {
+#ndwyscwtgw .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#cmgamqcnlq .gt_column_spanner_outer:last-child {
+#ndwyscwtgw .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#cmgamqcnlq .gt_column_spanner {
+#ndwyscwtgw .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -1065,11 +1130,11 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   width: 100%;
 }
 
-#cmgamqcnlq .gt_spanner_row {
+#ndwyscwtgw .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#cmgamqcnlq .gt_group_heading {
+#ndwyscwtgw .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1095,7 +1160,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   text-align: left;
 }
 
-#cmgamqcnlq .gt_empty_group_heading {
+#ndwyscwtgw .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -1110,15 +1175,15 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   vertical-align: middle;
 }
 
-#cmgamqcnlq .gt_from_md > :first-child {
+#ndwyscwtgw .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#cmgamqcnlq .gt_from_md > :last-child {
+#ndwyscwtgw .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#cmgamqcnlq .gt_row {
+#ndwyscwtgw .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1137,7 +1202,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   overflow-x: hidden;
 }
 
-#cmgamqcnlq .gt_stub {
+#ndwyscwtgw .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1150,7 +1215,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   padding-right: 5px;
 }
 
-#cmgamqcnlq .gt_stub_row_group {
+#ndwyscwtgw .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1164,15 +1229,15 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   vertical-align: top;
 }
 
-#cmgamqcnlq .gt_row_group_first td {
+#ndwyscwtgw .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#cmgamqcnlq .gt_row_group_first th {
+#ndwyscwtgw .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#cmgamqcnlq .gt_summary_row {
+#ndwyscwtgw .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1182,16 +1247,16 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   padding-right: 5px;
 }
 
-#cmgamqcnlq .gt_first_summary_row {
+#ndwyscwtgw .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#cmgamqcnlq .gt_first_summary_row.thick {
+#ndwyscwtgw .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#cmgamqcnlq .gt_last_summary_row {
+#ndwyscwtgw .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1201,7 +1266,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   border-bottom-color: #D3D3D3;
 }
 
-#cmgamqcnlq .gt_grand_summary_row {
+#ndwyscwtgw .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1211,7 +1276,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   padding-right: 5px;
 }
 
-#cmgamqcnlq .gt_first_grand_summary_row {
+#ndwyscwtgw .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1221,7 +1286,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   border-top-color: #D3D3D3;
 }
 
-#cmgamqcnlq .gt_last_grand_summary_row_top {
+#ndwyscwtgw .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1231,11 +1296,11 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   border-bottom-color: #D3D3D3;
 }
 
-#cmgamqcnlq .gt_striped {
+#ndwyscwtgw .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#cmgamqcnlq .gt_table_body {
+#ndwyscwtgw .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1244,7 +1309,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   border-bottom-color: #D3D3D3;
 }
 
-#cmgamqcnlq .gt_footnotes {
+#ndwyscwtgw .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1258,7 +1323,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   border-right-color: #D3D3D3;
 }
 
-#cmgamqcnlq .gt_footnote {
+#ndwyscwtgw .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1267,7 +1332,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   padding-right: 5px;
 }
 
-#cmgamqcnlq .gt_sourcenotes {
+#ndwyscwtgw .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1281,7 +1346,7 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   border-right-color: #D3D3D3;
 }
 
-#cmgamqcnlq .gt_sourcenote {
+#ndwyscwtgw .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1289,72 +1354,72 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
   padding-right: 5px;
 }
 
-#cmgamqcnlq .gt_left {
+#ndwyscwtgw .gt_left {
   text-align: left;
 }
 
-#cmgamqcnlq .gt_center {
+#ndwyscwtgw .gt_center {
   text-align: center;
 }
 
-#cmgamqcnlq .gt_right {
+#ndwyscwtgw .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#cmgamqcnlq .gt_font_normal {
+#ndwyscwtgw .gt_font_normal {
   font-weight: normal;
 }
 
-#cmgamqcnlq .gt_font_bold {
+#ndwyscwtgw .gt_font_bold {
   font-weight: bold;
 }
 
-#cmgamqcnlq .gt_font_italic {
+#ndwyscwtgw .gt_font_italic {
   font-style: italic;
 }
 
-#cmgamqcnlq .gt_super {
+#ndwyscwtgw .gt_super {
   font-size: 65%;
 }
 
-#cmgamqcnlq .gt_footnote_marks {
+#ndwyscwtgw .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#cmgamqcnlq .gt_asterisk {
+#ndwyscwtgw .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#cmgamqcnlq .gt_indent_1 {
+#ndwyscwtgw .gt_indent_1 {
   text-indent: 5px;
 }
 
-#cmgamqcnlq .gt_indent_2 {
+#ndwyscwtgw .gt_indent_2 {
   text-indent: 10px;
 }
 
-#cmgamqcnlq .gt_indent_3 {
+#ndwyscwtgw .gt_indent_3 {
   text-indent: 15px;
 }
 
-#cmgamqcnlq .gt_indent_4 {
+#ndwyscwtgw .gt_indent_4 {
   text-indent: 20px;
 }
 
-#cmgamqcnlq .gt_indent_5 {
+#ndwyscwtgw .gt_indent_5 {
   text-indent: 25px;
 }
 
-#cmgamqcnlq .katex-display {
+#ndwyscwtgw .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#cmgamqcnlq div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#ndwyscwtgw div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -1389,18 +1454,18 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
 </td>
 </tr>
 <tr class="even">
-<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Non-Surgical</td>
-<td class="gt_row gt_center" headers="stat_1">100% (100% - 100%)</td>
-<td class="gt_row gt_center" headers="stat_2">100% (100% - 100%)</td>
-<td class="gt_row gt_center" headers="stat_3">100% (100% - 100%)</td>
-<td class="gt_row gt_center" headers="stat_4">100% (100% - 100%)</td>
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Primary</td>
+<td class="gt_row gt_center" headers="stat_1">95% (92% - 99%)</td>
+<td class="gt_row gt_center" headers="stat_2">90% (84% - 96%)</td>
+<td class="gt_row gt_center" headers="stat_3">74% (63% - 88%)</td>
+<td class="gt_row gt_center" headers="stat_4">68% (53% - 86%)</td>
 </tr>
 <tr class="odd">
-<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Surgical</td>
-<td class="gt_row gt_center" headers="stat_1">92% (87% - 98%)</td>
-<td class="gt_row gt_center" headers="stat_2">82% (74% - 91%)</td>
-<td class="gt_row gt_center" headers="stat_3">67% (55% - 81%)</td>
-<td class="gt_row gt_center" headers="stat_4">46% (29% - 73%)</td>
+<td class="gt_row gt_left" headers="label">&nbsp;&nbsp;&nbsp;&nbsp;Revision</td>
+<td class="gt_row gt_center" headers="stat_1">88% (74% - 100%)</td>
+<td class="gt_row gt_center" headers="stat_2">64% (43% - 96%)</td>
+<td class="gt_row gt_center" headers="stat_3">64% (43% - 96%)</td>
+<td class="gt_row gt_center" headers="stat_4">0% (— - —)</td>
 </tr>
 </tbody>
 </table>
@@ -1411,9 +1476,11 @@ Table&nbsp;2: Summary of Tumour Pelvis Procedure Survival
 </figure>
 </div>
 </div>
+<p>The overall survival for surgical cases in this cohort are illustrated in <a href="#fig-survtp" class="quarto-xref">Figure&nbsp;10</a> and summarised in <a href="#tbl-survTP" class="quarto-xref">Table&nbsp;2</a>, with median survival for revision cases occurring at ~ 6 years and primary cases achieving ~70% survival out to 10 years.</p>
 </section>
 <section id="tumour-lower-limb" class="level2" data-number="5.2">
 <h2 data-number="5.2" class="anchored" data-anchor-id="tumour-lower-limb"><span class="header-section-number">5.2</span> Tumour Lower Limb</h2>
+<p>The tumour lower limb cohort included in this report include all cases presenting with abnormal growths directly interacting with the bones of the lower limb that do not include the pelvis. The majority of these cases treated surgically include GMRS or MRH components.</p>
 <div class="cell">
 <div id="tbl-tll-demographics" class="cell quarto-float anchored">
 <figure class="quarto-float quarto-float-tbl figure">
@@ -1422,23 +1489,23 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
 </figcaption>
 <div aria-describedby="tbl-tll-demographics-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div class="cell-output-display">
-<div id="ioypouwkps" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#ioypouwkps table {
+<div id="kioepspioc" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#kioepspioc table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#ioypouwkps thead, #ioypouwkps tbody, #ioypouwkps tfoot, #ioypouwkps tr, #ioypouwkps td, #ioypouwkps th {
+#kioepspioc thead, #kioepspioc tbody, #kioepspioc tfoot, #kioepspioc tr, #kioepspioc td, #kioepspioc th {
   border-style: none;
 }
 
-#ioypouwkps p {
+#kioepspioc p {
   margin: 0;
   padding: 0;
 }
 
-#ioypouwkps .gt_table {
+#kioepspioc .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -1464,12 +1531,12 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   border-left-color: #D3D3D3;
 }
 
-#ioypouwkps .gt_caption {
+#kioepspioc .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#ioypouwkps .gt_title {
+#kioepspioc .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -1481,7 +1548,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   border-bottom-width: 0;
 }
 
-#ioypouwkps .gt_subtitle {
+#kioepspioc .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -1493,7 +1560,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   border-top-width: 0;
 }
 
-#ioypouwkps .gt_heading {
+#kioepspioc .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -1505,13 +1572,13 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   border-right-color: #D3D3D3;
 }
 
-#ioypouwkps .gt_bottom_border {
+#kioepspioc .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#ioypouwkps .gt_col_headings {
+#kioepspioc .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1526,7 +1593,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   border-right-color: #D3D3D3;
 }
 
-#ioypouwkps .gt_col_heading {
+#kioepspioc .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1546,7 +1613,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   overflow-x: hidden;
 }
 
-#ioypouwkps .gt_column_spanner_outer {
+#kioepspioc .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1558,15 +1625,15 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   padding-right: 4px;
 }
 
-#ioypouwkps .gt_column_spanner_outer:first-child {
+#kioepspioc .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#ioypouwkps .gt_column_spanner_outer:last-child {
+#kioepspioc .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#ioypouwkps .gt_column_spanner {
+#kioepspioc .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -1578,11 +1645,11 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   width: 100%;
 }
 
-#ioypouwkps .gt_spanner_row {
+#kioepspioc .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#ioypouwkps .gt_group_heading {
+#kioepspioc .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1608,7 +1675,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   text-align: left;
 }
 
-#ioypouwkps .gt_empty_group_heading {
+#kioepspioc .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -1623,15 +1690,15 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   vertical-align: middle;
 }
 
-#ioypouwkps .gt_from_md > :first-child {
+#kioepspioc .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#ioypouwkps .gt_from_md > :last-child {
+#kioepspioc .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#ioypouwkps .gt_row {
+#kioepspioc .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1650,7 +1717,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   overflow-x: hidden;
 }
 
-#ioypouwkps .gt_stub {
+#kioepspioc .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1663,7 +1730,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   padding-right: 5px;
 }
 
-#ioypouwkps .gt_stub_row_group {
+#kioepspioc .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1677,15 +1744,15 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   vertical-align: top;
 }
 
-#ioypouwkps .gt_row_group_first td {
+#kioepspioc .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#ioypouwkps .gt_row_group_first th {
+#kioepspioc .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#ioypouwkps .gt_summary_row {
+#kioepspioc .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1695,16 +1762,16 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   padding-right: 5px;
 }
 
-#ioypouwkps .gt_first_summary_row {
+#kioepspioc .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#ioypouwkps .gt_first_summary_row.thick {
+#kioepspioc .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#ioypouwkps .gt_last_summary_row {
+#kioepspioc .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1714,7 +1781,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   border-bottom-color: #D3D3D3;
 }
 
-#ioypouwkps .gt_grand_summary_row {
+#kioepspioc .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1724,7 +1791,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   padding-right: 5px;
 }
 
-#ioypouwkps .gt_first_grand_summary_row {
+#kioepspioc .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1734,7 +1801,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   border-top-color: #D3D3D3;
 }
 
-#ioypouwkps .gt_last_grand_summary_row_top {
+#kioepspioc .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1744,11 +1811,11 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   border-bottom-color: #D3D3D3;
 }
 
-#ioypouwkps .gt_striped {
+#kioepspioc .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#ioypouwkps .gt_table_body {
+#kioepspioc .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1757,7 +1824,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   border-bottom-color: #D3D3D3;
 }
 
-#ioypouwkps .gt_footnotes {
+#kioepspioc .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1771,7 +1838,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   border-right-color: #D3D3D3;
 }
 
-#ioypouwkps .gt_footnote {
+#kioepspioc .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1780,7 +1847,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   padding-right: 5px;
 }
 
-#ioypouwkps .gt_sourcenotes {
+#kioepspioc .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1794,7 +1861,7 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   border-right-color: #D3D3D3;
 }
 
-#ioypouwkps .gt_sourcenote {
+#kioepspioc .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1802,72 +1869,72 @@ Table&nbsp;3: Summary of demographics in Tumour Lower Limb cohort
   padding-right: 5px;
 }
 
-#ioypouwkps .gt_left {
+#kioepspioc .gt_left {
   text-align: left;
 }
 
-#ioypouwkps .gt_center {
+#kioepspioc .gt_center {
   text-align: center;
 }
 
-#ioypouwkps .gt_right {
+#kioepspioc .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#ioypouwkps .gt_font_normal {
+#kioepspioc .gt_font_normal {
   font-weight: normal;
 }
 
-#ioypouwkps .gt_font_bold {
+#kioepspioc .gt_font_bold {
   font-weight: bold;
 }
 
-#ioypouwkps .gt_font_italic {
+#kioepspioc .gt_font_italic {
   font-style: italic;
 }
 
-#ioypouwkps .gt_super {
+#kioepspioc .gt_super {
   font-size: 65%;
 }
 
-#ioypouwkps .gt_footnote_marks {
+#kioepspioc .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#ioypouwkps .gt_asterisk {
+#kioepspioc .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#ioypouwkps .gt_indent_1 {
+#kioepspioc .gt_indent_1 {
   text-indent: 5px;
 }
 
-#ioypouwkps .gt_indent_2 {
+#kioepspioc .gt_indent_2 {
   text-indent: 10px;
 }
 
-#ioypouwkps .gt_indent_3 {
+#kioepspioc .gt_indent_3 {
   text-indent: 15px;
 }
 
-#ioypouwkps .gt_indent_4 {
+#kioepspioc .gt_indent_4 {
   text-indent: 20px;
 }
 
-#ioypouwkps .gt_indent_5 {
+#kioepspioc .gt_indent_5 {
   text-indent: 25px;
 }
 
-#ioypouwkps .katex-display {
+#kioepspioc .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#ioypouwkps div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#kioepspioc div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -2045,6 +2112,7 @@ Figure&nbsp;11: Summary of Brief Pain Inventory - Severity by Timepoint for prim
 </div>
 </div>
 </div>
+<p>The severity of pain captured in the BPI short form remains difficult to compare between primary vs revision cases (<a href="#fig-bpi-tll" class="quarto-xref">Figure&nbsp;11</a>) due to low sample sizes, but overall primary cases report relatively low pain up to 10 years postoperatively.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div id="fig-survtll" class="quarto-figure quarto-figure-center quarto-float anchored">
@@ -2067,23 +2135,23 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
 </figcaption>
 <div aria-describedby="tbl-survTLL-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div class="cell-output-display">
-<div id="zectnstryw" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#zectnstryw table {
+<div id="baugwfrppk" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#baugwfrppk table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#zectnstryw thead, #zectnstryw tbody, #zectnstryw tfoot, #zectnstryw tr, #zectnstryw td, #zectnstryw th {
+#baugwfrppk thead, #baugwfrppk tbody, #baugwfrppk tfoot, #baugwfrppk tr, #baugwfrppk td, #baugwfrppk th {
   border-style: none;
 }
 
-#zectnstryw p {
+#baugwfrppk p {
   margin: 0;
   padding: 0;
 }
 
-#zectnstryw .gt_table {
+#baugwfrppk .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -2109,12 +2177,12 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   border-left-color: #D3D3D3;
 }
 
-#zectnstryw .gt_caption {
+#baugwfrppk .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#zectnstryw .gt_title {
+#baugwfrppk .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -2126,7 +2194,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   border-bottom-width: 0;
 }
 
-#zectnstryw .gt_subtitle {
+#baugwfrppk .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -2138,7 +2206,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   border-top-width: 0;
 }
 
-#zectnstryw .gt_heading {
+#baugwfrppk .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -2150,13 +2218,13 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   border-right-color: #D3D3D3;
 }
 
-#zectnstryw .gt_bottom_border {
+#baugwfrppk .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#zectnstryw .gt_col_headings {
+#baugwfrppk .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -2171,7 +2239,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   border-right-color: #D3D3D3;
 }
 
-#zectnstryw .gt_col_heading {
+#baugwfrppk .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2191,7 +2259,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   overflow-x: hidden;
 }
 
-#zectnstryw .gt_column_spanner_outer {
+#baugwfrppk .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2203,15 +2271,15 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   padding-right: 4px;
 }
 
-#zectnstryw .gt_column_spanner_outer:first-child {
+#baugwfrppk .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#zectnstryw .gt_column_spanner_outer:last-child {
+#baugwfrppk .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#zectnstryw .gt_column_spanner {
+#baugwfrppk .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -2223,11 +2291,11 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   width: 100%;
 }
 
-#zectnstryw .gt_spanner_row {
+#baugwfrppk .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#zectnstryw .gt_group_heading {
+#baugwfrppk .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2253,7 +2321,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   text-align: left;
 }
 
-#zectnstryw .gt_empty_group_heading {
+#baugwfrppk .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -2268,15 +2336,15 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   vertical-align: middle;
 }
 
-#zectnstryw .gt_from_md > :first-child {
+#baugwfrppk .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#zectnstryw .gt_from_md > :last-child {
+#baugwfrppk .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#zectnstryw .gt_row {
+#baugwfrppk .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2295,7 +2363,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   overflow-x: hidden;
 }
 
-#zectnstryw .gt_stub {
+#baugwfrppk .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2308,7 +2376,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   padding-right: 5px;
 }
 
-#zectnstryw .gt_stub_row_group {
+#baugwfrppk .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2322,15 +2390,15 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   vertical-align: top;
 }
 
-#zectnstryw .gt_row_group_first td {
+#baugwfrppk .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#zectnstryw .gt_row_group_first th {
+#baugwfrppk .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#zectnstryw .gt_summary_row {
+#baugwfrppk .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -2340,16 +2408,16 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   padding-right: 5px;
 }
 
-#zectnstryw .gt_first_summary_row {
+#baugwfrppk .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#zectnstryw .gt_first_summary_row.thick {
+#baugwfrppk .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#zectnstryw .gt_last_summary_row {
+#baugwfrppk .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2359,7 +2427,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   border-bottom-color: #D3D3D3;
 }
 
-#zectnstryw .gt_grand_summary_row {
+#baugwfrppk .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -2369,7 +2437,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   padding-right: 5px;
 }
 
-#zectnstryw .gt_first_grand_summary_row {
+#baugwfrppk .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2379,7 +2447,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   border-top-color: #D3D3D3;
 }
 
-#zectnstryw .gt_last_grand_summary_row_top {
+#baugwfrppk .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2389,11 +2457,11 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   border-bottom-color: #D3D3D3;
 }
 
-#zectnstryw .gt_striped {
+#baugwfrppk .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#zectnstryw .gt_table_body {
+#baugwfrppk .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -2402,7 +2470,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   border-bottom-color: #D3D3D3;
 }
 
-#zectnstryw .gt_footnotes {
+#baugwfrppk .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -2416,7 +2484,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   border-right-color: #D3D3D3;
 }
 
-#zectnstryw .gt_footnote {
+#baugwfrppk .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -2425,7 +2493,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   padding-right: 5px;
 }
 
-#zectnstryw .gt_sourcenotes {
+#baugwfrppk .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -2439,7 +2507,7 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   border-right-color: #D3D3D3;
 }
 
-#zectnstryw .gt_sourcenote {
+#baugwfrppk .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -2447,72 +2515,72 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
   padding-right: 5px;
 }
 
-#zectnstryw .gt_left {
+#baugwfrppk .gt_left {
   text-align: left;
 }
 
-#zectnstryw .gt_center {
+#baugwfrppk .gt_center {
   text-align: center;
 }
 
-#zectnstryw .gt_right {
+#baugwfrppk .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#zectnstryw .gt_font_normal {
+#baugwfrppk .gt_font_normal {
   font-weight: normal;
 }
 
-#zectnstryw .gt_font_bold {
+#baugwfrppk .gt_font_bold {
   font-weight: bold;
 }
 
-#zectnstryw .gt_font_italic {
+#baugwfrppk .gt_font_italic {
   font-style: italic;
 }
 
-#zectnstryw .gt_super {
+#baugwfrppk .gt_super {
   font-size: 65%;
 }
 
-#zectnstryw .gt_footnote_marks {
+#baugwfrppk .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#zectnstryw .gt_asterisk {
+#baugwfrppk .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#zectnstryw .gt_indent_1 {
+#baugwfrppk .gt_indent_1 {
   text-indent: 5px;
 }
 
-#zectnstryw .gt_indent_2 {
+#baugwfrppk .gt_indent_2 {
   text-indent: 10px;
 }
 
-#zectnstryw .gt_indent_3 {
+#baugwfrppk .gt_indent_3 {
   text-indent: 15px;
 }
 
-#zectnstryw .gt_indent_4 {
+#baugwfrppk .gt_indent_4 {
   text-indent: 20px;
 }
 
-#zectnstryw .gt_indent_5 {
+#baugwfrppk .gt_indent_5 {
   text-indent: 25px;
 }
 
-#zectnstryw .katex-display {
+#baugwfrppk .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#zectnstryw div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#baugwfrppk div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -2569,9 +2637,11 @@ Table&nbsp;4: Summary of Tumour Lower Limb Procedure Survival
 </figure>
 </div>
 </div>
+<p>The overall survival for surgical cases in this cohort are illustrated in <a href="#fig-survtll" class="quarto-xref">Figure&nbsp;12</a> and summarised in <a href="#tbl-survTLL" class="quarto-xref">Table&nbsp;4</a> , with 60% survival for revision cases occurring at ~ 2.5 years, while for primary cases this occurred ~ 13 years.</p>
 </section>
 <section id="gmrs-mrh" class="level2" data-number="5.3">
 <h2 data-number="5.3" class="anchored" data-anchor-id="gmrs-mrh"><span class="header-section-number">5.3</span> GMRS-MRH</h2>
+<p>The surgical cases containing Stryker components are tagged in an additional field. For the purposes of this report, the label Hardware contains the first instance in the text field of GMRS or MRH. There are a number of cases where both components have been used that is not reflected in the data below (see specific sponsor reports).</p>
 <div class="cell">
 <div id="tbl-gmrs-demographics" class="cell quarto-float anchored">
 <figure class="quarto-float quarto-float-tbl figure">
@@ -2580,23 +2650,23 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
 </figcaption>
 <div aria-describedby="tbl-gmrs-demographics-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div class="cell-output-display">
-<div id="mlqclyqjex" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#mlqclyqjex table {
+<div id="rbuodvxprj" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#rbuodvxprj table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#mlqclyqjex thead, #mlqclyqjex tbody, #mlqclyqjex tfoot, #mlqclyqjex tr, #mlqclyqjex td, #mlqclyqjex th {
+#rbuodvxprj thead, #rbuodvxprj tbody, #rbuodvxprj tfoot, #rbuodvxprj tr, #rbuodvxprj td, #rbuodvxprj th {
   border-style: none;
 }
 
-#mlqclyqjex p {
+#rbuodvxprj p {
   margin: 0;
   padding: 0;
 }
 
-#mlqclyqjex .gt_table {
+#rbuodvxprj .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -2622,12 +2692,12 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   border-left-color: #D3D3D3;
 }
 
-#mlqclyqjex .gt_caption {
+#rbuodvxprj .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#mlqclyqjex .gt_title {
+#rbuodvxprj .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -2639,7 +2709,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   border-bottom-width: 0;
 }
 
-#mlqclyqjex .gt_subtitle {
+#rbuodvxprj .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -2651,7 +2721,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   border-top-width: 0;
 }
 
-#mlqclyqjex .gt_heading {
+#rbuodvxprj .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -2663,13 +2733,13 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   border-right-color: #D3D3D3;
 }
 
-#mlqclyqjex .gt_bottom_border {
+#rbuodvxprj .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#mlqclyqjex .gt_col_headings {
+#rbuodvxprj .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -2684,7 +2754,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   border-right-color: #D3D3D3;
 }
 
-#mlqclyqjex .gt_col_heading {
+#rbuodvxprj .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2704,7 +2774,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   overflow-x: hidden;
 }
 
-#mlqclyqjex .gt_column_spanner_outer {
+#rbuodvxprj .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2716,15 +2786,15 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   padding-right: 4px;
 }
 
-#mlqclyqjex .gt_column_spanner_outer:first-child {
+#rbuodvxprj .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#mlqclyqjex .gt_column_spanner_outer:last-child {
+#rbuodvxprj .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#mlqclyqjex .gt_column_spanner {
+#rbuodvxprj .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -2736,11 +2806,11 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   width: 100%;
 }
 
-#mlqclyqjex .gt_spanner_row {
+#rbuodvxprj .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#mlqclyqjex .gt_group_heading {
+#rbuodvxprj .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2766,7 +2836,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   text-align: left;
 }
 
-#mlqclyqjex .gt_empty_group_heading {
+#rbuodvxprj .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -2781,15 +2851,15 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   vertical-align: middle;
 }
 
-#mlqclyqjex .gt_from_md > :first-child {
+#rbuodvxprj .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#mlqclyqjex .gt_from_md > :last-child {
+#rbuodvxprj .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#mlqclyqjex .gt_row {
+#rbuodvxprj .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2808,7 +2878,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   overflow-x: hidden;
 }
 
-#mlqclyqjex .gt_stub {
+#rbuodvxprj .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2821,7 +2891,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   padding-right: 5px;
 }
 
-#mlqclyqjex .gt_stub_row_group {
+#rbuodvxprj .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -2835,15 +2905,15 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   vertical-align: top;
 }
 
-#mlqclyqjex .gt_row_group_first td {
+#rbuodvxprj .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#mlqclyqjex .gt_row_group_first th {
+#rbuodvxprj .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#mlqclyqjex .gt_summary_row {
+#rbuodvxprj .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -2853,16 +2923,16 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   padding-right: 5px;
 }
 
-#mlqclyqjex .gt_first_summary_row {
+#rbuodvxprj .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#mlqclyqjex .gt_first_summary_row.thick {
+#rbuodvxprj .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#mlqclyqjex .gt_last_summary_row {
+#rbuodvxprj .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2872,7 +2942,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   border-bottom-color: #D3D3D3;
 }
 
-#mlqclyqjex .gt_grand_summary_row {
+#rbuodvxprj .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -2882,7 +2952,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   padding-right: 5px;
 }
 
-#mlqclyqjex .gt_first_grand_summary_row {
+#rbuodvxprj .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2892,7 +2962,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   border-top-color: #D3D3D3;
 }
 
-#mlqclyqjex .gt_last_grand_summary_row_top {
+#rbuodvxprj .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -2902,11 +2972,11 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   border-bottom-color: #D3D3D3;
 }
 
-#mlqclyqjex .gt_striped {
+#rbuodvxprj .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#mlqclyqjex .gt_table_body {
+#rbuodvxprj .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -2915,7 +2985,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   border-bottom-color: #D3D3D3;
 }
 
-#mlqclyqjex .gt_footnotes {
+#rbuodvxprj .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -2929,7 +2999,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   border-right-color: #D3D3D3;
 }
 
-#mlqclyqjex .gt_footnote {
+#rbuodvxprj .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -2938,7 +3008,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   padding-right: 5px;
 }
 
-#mlqclyqjex .gt_sourcenotes {
+#rbuodvxprj .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -2952,7 +3022,7 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   border-right-color: #D3D3D3;
 }
 
-#mlqclyqjex .gt_sourcenote {
+#rbuodvxprj .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -2960,72 +3030,72 @@ Table&nbsp;5: Summary of demographics in GMRS-MRH cohort
   padding-right: 5px;
 }
 
-#mlqclyqjex .gt_left {
+#rbuodvxprj .gt_left {
   text-align: left;
 }
 
-#mlqclyqjex .gt_center {
+#rbuodvxprj .gt_center {
   text-align: center;
 }
 
-#mlqclyqjex .gt_right {
+#rbuodvxprj .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#mlqclyqjex .gt_font_normal {
+#rbuodvxprj .gt_font_normal {
   font-weight: normal;
 }
 
-#mlqclyqjex .gt_font_bold {
+#rbuodvxprj .gt_font_bold {
   font-weight: bold;
 }
 
-#mlqclyqjex .gt_font_italic {
+#rbuodvxprj .gt_font_italic {
   font-style: italic;
 }
 
-#mlqclyqjex .gt_super {
+#rbuodvxprj .gt_super {
   font-size: 65%;
 }
 
-#mlqclyqjex .gt_footnote_marks {
+#rbuodvxprj .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#mlqclyqjex .gt_asterisk {
+#rbuodvxprj .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#mlqclyqjex .gt_indent_1 {
+#rbuodvxprj .gt_indent_1 {
   text-indent: 5px;
 }
 
-#mlqclyqjex .gt_indent_2 {
+#rbuodvxprj .gt_indent_2 {
   text-indent: 10px;
 }
 
-#mlqclyqjex .gt_indent_3 {
+#rbuodvxprj .gt_indent_3 {
   text-indent: 15px;
 }
 
-#mlqclyqjex .gt_indent_4 {
+#rbuodvxprj .gt_indent_4 {
   text-indent: 20px;
 }
 
-#mlqclyqjex .gt_indent_5 {
+#rbuodvxprj .gt_indent_5 {
   text-indent: 25px;
 }
 
-#mlqclyqjex .katex-display {
+#rbuodvxprj .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#mlqclyqjex div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#rbuodvxprj div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -3300,6 +3370,7 @@ N = 12<span class="gt_footnote_marks" style="white-space:nowrap;font-style:itali
 </figure>
 </div>
 </div>
+<p>The General cohort included in <a href="#tbl-gmrs-demographics" class="quarto-xref">Table&nbsp;5</a> include complex primary arthroplasties for deformity concomitant with osteoarthritis of the knee that have received the components of interest.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div id="fig-survgmrs" class="quarto-figure quarto-figure-center quarto-float anchored">
@@ -3322,23 +3393,23 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
 </figcaption>
 <div aria-describedby="tbl-survgmrs-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <div class="cell-output-display">
-<div id="ustpewwqow" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#ustpewwqow table {
+<div id="itimljgumu" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#itimljgumu table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#ustpewwqow thead, #ustpewwqow tbody, #ustpewwqow tfoot, #ustpewwqow tr, #ustpewwqow td, #ustpewwqow th {
+#itimljgumu thead, #itimljgumu tbody, #itimljgumu tfoot, #itimljgumu tr, #itimljgumu td, #itimljgumu th {
   border-style: none;
 }
 
-#ustpewwqow p {
+#itimljgumu p {
   margin: 0;
   padding: 0;
 }
 
-#ustpewwqow .gt_table {
+#itimljgumu .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -3364,12 +3435,12 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   border-left-color: #D3D3D3;
 }
 
-#ustpewwqow .gt_caption {
+#itimljgumu .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#ustpewwqow .gt_title {
+#itimljgumu .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -3381,7 +3452,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   border-bottom-width: 0;
 }
 
-#ustpewwqow .gt_subtitle {
+#itimljgumu .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -3393,7 +3464,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   border-top-width: 0;
 }
 
-#ustpewwqow .gt_heading {
+#itimljgumu .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -3405,13 +3476,13 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   border-right-color: #D3D3D3;
 }
 
-#ustpewwqow .gt_bottom_border {
+#itimljgumu .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#ustpewwqow .gt_col_headings {
+#itimljgumu .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -3426,7 +3497,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   border-right-color: #D3D3D3;
 }
 
-#ustpewwqow .gt_col_heading {
+#itimljgumu .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -3446,7 +3517,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   overflow-x: hidden;
 }
 
-#ustpewwqow .gt_column_spanner_outer {
+#itimljgumu .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -3458,15 +3529,15 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   padding-right: 4px;
 }
 
-#ustpewwqow .gt_column_spanner_outer:first-child {
+#itimljgumu .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#ustpewwqow .gt_column_spanner_outer:last-child {
+#itimljgumu .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#ustpewwqow .gt_column_spanner {
+#itimljgumu .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -3478,11 +3549,11 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   width: 100%;
 }
 
-#ustpewwqow .gt_spanner_row {
+#itimljgumu .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#ustpewwqow .gt_group_heading {
+#itimljgumu .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -3508,7 +3579,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   text-align: left;
 }
 
-#ustpewwqow .gt_empty_group_heading {
+#itimljgumu .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -3523,15 +3594,15 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   vertical-align: middle;
 }
 
-#ustpewwqow .gt_from_md > :first-child {
+#itimljgumu .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#ustpewwqow .gt_from_md > :last-child {
+#itimljgumu .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#ustpewwqow .gt_row {
+#itimljgumu .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -3550,7 +3621,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   overflow-x: hidden;
 }
 
-#ustpewwqow .gt_stub {
+#itimljgumu .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -3563,7 +3634,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   padding-right: 5px;
 }
 
-#ustpewwqow .gt_stub_row_group {
+#itimljgumu .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -3577,15 +3648,15 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   vertical-align: top;
 }
 
-#ustpewwqow .gt_row_group_first td {
+#itimljgumu .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#ustpewwqow .gt_row_group_first th {
+#itimljgumu .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#ustpewwqow .gt_summary_row {
+#itimljgumu .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -3595,16 +3666,16 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   padding-right: 5px;
 }
 
-#ustpewwqow .gt_first_summary_row {
+#itimljgumu .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#ustpewwqow .gt_first_summary_row.thick {
+#itimljgumu .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#ustpewwqow .gt_last_summary_row {
+#itimljgumu .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -3614,7 +3685,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   border-bottom-color: #D3D3D3;
 }
 
-#ustpewwqow .gt_grand_summary_row {
+#itimljgumu .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -3624,7 +3695,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   padding-right: 5px;
 }
 
-#ustpewwqow .gt_first_grand_summary_row {
+#itimljgumu .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -3634,7 +3705,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   border-top-color: #D3D3D3;
 }
 
-#ustpewwqow .gt_last_grand_summary_row_top {
+#itimljgumu .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -3644,11 +3715,11 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   border-bottom-color: #D3D3D3;
 }
 
-#ustpewwqow .gt_striped {
+#itimljgumu .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#ustpewwqow .gt_table_body {
+#itimljgumu .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -3657,7 +3728,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   border-bottom-color: #D3D3D3;
 }
 
-#ustpewwqow .gt_footnotes {
+#itimljgumu .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -3671,7 +3742,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   border-right-color: #D3D3D3;
 }
 
-#ustpewwqow .gt_footnote {
+#itimljgumu .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -3680,7 +3751,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   padding-right: 5px;
 }
 
-#ustpewwqow .gt_sourcenotes {
+#itimljgumu .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -3694,7 +3765,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   border-right-color: #D3D3D3;
 }
 
-#ustpewwqow .gt_sourcenote {
+#itimljgumu .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -3702,72 +3773,72 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
   padding-right: 5px;
 }
 
-#ustpewwqow .gt_left {
+#itimljgumu .gt_left {
   text-align: left;
 }
 
-#ustpewwqow .gt_center {
+#itimljgumu .gt_center {
   text-align: center;
 }
 
-#ustpewwqow .gt_right {
+#itimljgumu .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#ustpewwqow .gt_font_normal {
+#itimljgumu .gt_font_normal {
   font-weight: normal;
 }
 
-#ustpewwqow .gt_font_bold {
+#itimljgumu .gt_font_bold {
   font-weight: bold;
 }
 
-#ustpewwqow .gt_font_italic {
+#itimljgumu .gt_font_italic {
   font-style: italic;
 }
 
-#ustpewwqow .gt_super {
+#itimljgumu .gt_super {
   font-size: 65%;
 }
 
-#ustpewwqow .gt_footnote_marks {
+#itimljgumu .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#ustpewwqow .gt_asterisk {
+#itimljgumu .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#ustpewwqow .gt_indent_1 {
+#itimljgumu .gt_indent_1 {
   text-indent: 5px;
 }
 
-#ustpewwqow .gt_indent_2 {
+#itimljgumu .gt_indent_2 {
   text-indent: 10px;
 }
 
-#ustpewwqow .gt_indent_3 {
+#itimljgumu .gt_indent_3 {
   text-indent: 15px;
 }
 
-#ustpewwqow .gt_indent_4 {
+#itimljgumu .gt_indent_4 {
   text-indent: 20px;
 }
 
-#ustpewwqow .gt_indent_5 {
+#itimljgumu .gt_indent_5 {
   text-indent: 25px;
 }
 
-#ustpewwqow .katex-display {
+#itimljgumu .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#ustpewwqow div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#itimljgumu div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -3824,20 +3895,7 @@ Table&nbsp;6: Summary of GMRS-MRH Procedure Survival
 </figure>
 </div>
 </div>
-<div class="cell">
-<div class="cell-output-display">
-<div id="fig-msts2" class="quarto-figure quarto-figure-center quarto-float anchored">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-msts2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="COMPRESSORGov_files/figure-html/fig-msts2-1.png" class="img-fluid figure-img" width="672">
-</div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-msts2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;14: Summary of MSTS by Timepoint for GMRS | MRH cases
-</figcaption>
-</figure>
-</div>
-</div>
-</div>
+<p>The overall survival for surgical cases in this cohort are illustrated in <a href="#fig-survgmrs" class="quarto-xref">Figure&nbsp;13</a> and summarised in <a href="#tbl-survgmrs" class="quarto-xref">Table&nbsp;6</a> , with 70% survival for revision cases occurring at ~ 5 years, while for primary cases this occurred ~ 10 years.</p>
 <div class="cell">
 <div class="cell-output-display">
 <div id="fig-vr122" class="quarto-figure quarto-figure-center quarto-float anchored">
@@ -3846,12 +3904,28 @@ Figure&nbsp;14: Summary of MSTS by Timepoint for GMRS | MRH cases
 <img src="COMPRESSORGov_files/figure-html/fig-vr122-1.png" class="img-fluid figure-img" width="672">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-vr122-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;15: Summary of VR12 by Timepoint
+Figure&nbsp;14: Summary of VR12 by Timepoint
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
+<p>The VR12 Physical component data (<a href="#fig-vr122" class="quarto-xref">Figure&nbsp;14</a>) remain difficult to interpret due to the low sample sizes and cross sectional nature of the data. Initial observations identify relative stability across timepoints for ReinterventionTKA, while TumourLowerLimb displays a more complex pattern of recovery from 6 months onwards.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-msts2" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-msts2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="COMPRESSORGov_files/figure-html/fig-msts2-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-msts2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;15: Summary of MSTS by Timepoint for GMRS | MRH cases
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Similarly, the cross-sectional nature of the MSTS data for this subgroup may be misleading (<a href="#fig-msts2" class="quarto-xref">Figure&nbsp;15</a>), however differences are notable within the TumourLowerLimb cohort between primary and revision cases.</p>
 </section>
 </section>
 <section id="observations-interpretation" class="level1" data-number="6">
@@ -3866,6 +3940,7 @@ Figure&nbsp;15: Summary of VR12 by Timepoint
 <h1 data-number="7"><span class="header-section-number">7</span> Recommendations</h1>
 <ul>
 <li><p>Continuing efforts to retrieve PROMs information from patients</p></li>
+<li><p>Engage with patients regarding their results using the web-based COMPRESSOR portal.</p></li>
 <li><p>Consider capture of intraoperative data on prospective or retrospective cases</p></li>
 <li><p>Refine diagnosis coding within cohorts</p></li>
 <li><p>Implement strategies to improve patient engagement at later followup timepoints</p></li>

@@ -6,8 +6,8 @@ version: 3.0
 type: "website"
 number-sections: true
 number-depth: 3
-date: "2025-Jul-30"
-date-modified: "2025-Jul-30"
+date: "2025-Jul-31"
+date-modified: "2025-Jul-31"
 
 bibliography: CompressorGov references.bib
 
@@ -101,8 +101,6 @@ A function was generated to retrieve files using the *googledrive* package, to c
 #| echo: false
 
 base_folder_id1 <- "1c08mZXSxqhJx5IniJ1ur3YpWpgWXUoIO"
-
-
 
 
 ```
@@ -205,7 +203,7 @@ colnames(PatientTable) <- Patient_Col
 
 ```
 
-A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (29-Jul-2025).
+A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (31-Jul-2025).
 
 ```{r}
 
@@ -283,7 +281,13 @@ STROBEInput <- openxlsx2::wb_to_df(
 
 # Context
 
-COMPRESSOR (Complex Reconstructive Surgery Outcomes Registry) is a clinical quality registry supporting the practices of one surgeon in Sydney, New South Wales. It has been in operation over two distinct periods, with upper and lower limb tumour cohorts, as well as tumour of the pelvis and reintervention arthroplasty cohorts of the hip and knee.
+COMPRESSOR (Complex Reconstructive Surgery Outcomes Registry) is a clinical quality registry supporting the practices of one surgeon in Sydney, New South Wales. It has been in operation over two distinct periods, with upper and lower limb tumour cohorts, as well as tumour of the pelvis and reintervention arthroplasty cohorts of the hip and knee. The periods that the registry has been actively collecting PROMs;
+
+1.  25-Feb-2022 to 29-Sep-2022
+
+2.  27-Mar-2025 to present
+
+It should be noted that collection of PROMs has been heavily restricted for this registry due to concerns over appropriateness to follow up patients at high-risk of mortality or other contraindications for completing scores. These restrictions have only recently been lifted, and only then for cases receiving hardware components of interest (Ossis, Stryker GMRS-MRH).
 
 # Recruitment Flow by Region
 
@@ -423,6 +427,16 @@ knitr::knit_print(STROBEPlot2)
 
 ```
 
+The flowcharts were separated into two components (@fig-strobe-cohort1 and @fig-strobe-cohort2) and exclusions noted for patients that were labelled as a procedure failure.
+
+::: {#procedurefailure .callout-note}
+A procedure failure is defined by a terminology in the clinical letter and/or a revision case booked that affects the previously operated joint region. The general definition for arthroplasty cases as per the NJRR was used, whereby removal of any significant component of the existing prosthesis with replacement was deemed a failure of the preceding arthroplasty. In the case of infections treated with long-term antibiotics, where the preceding surgical procedure was intended to treat an existing infection, these cases were failed. In cases where DAIR with antibiotic therapy was used for non-septic revisions or primary cases in which an infection has been detected, these have been noted as complications without failing the preceding treatment.
+:::
+
+::: {#progressionend .callout-note}
+Treatment progression end is a term to denote that a treatment record is no longer being actively tracked by the registry team with respect to clinical outcomes or patient-reported outcomes. In this registry, the majority of cases are deceased, or are not contactable by the registry. A smaller number are stage 1 revisions that have transition to stage 2.
+:::
+
 Cumulative recruitment over time was plotted from Registry inception to the present.
 
 ```{r}
@@ -473,9 +487,13 @@ knitr::knit_print(cumulative_plot)
 
 ```
 
+The non-linear recruitment progression illustrated in @fig-progress denotes the distinct periods of operation of COMPRESSOR, combined with periods of retrospective chart review of key patient subgroups. The recent increase in recruitment has been facilitated by some reorganisation of the cohort structure of the registry. This has had the side effect of increasing the PROMs eligible pool at the relevant time points.
+
 # Missingness and Compliance
 
 ## Baseline
+
+The COMPRESSOR registry has a patchy history of baseline capture for relevant cohorts. A large proportion of those eligible for baseline capture have been due to their enrolment during the "active" periods of the registry, but not necessarily when the PROMs component of the registry has been active. This has created challenges in determining the eligibility of records for baseline capture.
 
 ```{r}
 #| label: fig-baseline-miss
@@ -514,11 +532,11 @@ knitr::knit_print(FigureMissBase)
 
 ```
 
-Missingness for baseline PROMs (represented by VR12, common to all cohorts) is captured in @fig-baseline-miss.
-
-Overall, there are variable response rates for scores across cohorts.
+Missingness for baseline PROMs (represented by VR12, common to all cohorts) is captured in @fig-baseline-miss. Overall, the eligible pool remains small for many cohorts for baseline capture and response rates vary between cohorts.
 
 ## Patient-reported Outcomes by TimePoint
+
+As the registry has been running for a relatively short period of time, the followup PROMs capture is best described as cross-sectional rather than longitudinal, in that there are few treatment records eligible for multiple timepoints in the follow up schedule.
 
 ```{r}
 #| label: fig-vr12-miss
@@ -587,6 +605,12 @@ knitr::knit_print(FigureVR12Miss)
 
 ```
 
+The VR12 is the first score presented to patients at each timepoint, but is not presented at every timepoint for every cohort. The variable capture between timepoints illustrated in @fig-vr12-miss may reflect a number of underlying factors (cohort differences in engagement, mode of communication, whether it is the first attempt at followup).
+
+::: {#eligibility .callout-note}
+Eligibility for PROMs capture had to be calculated by determining the date on which the record was created, the date windows for each follow-up time-point and comparing these to the active periods of the registry operation. The eligible pool of treatments varies depending on how the active periods of PROMs collection line up with the follow-up schedule windows.
+:::
+
 ```{r}
 #| label: fig-msts-miss
 #| fig-cap: "Missingness of MSTS by Timepoint cohort"
@@ -611,12 +635,13 @@ PROMMSTS <- Snapshot2 |> dplyr::select(
   names_to = c(".value","TimePoint"),
   names_sep = "_",
   values_drop_na = TRUE
-) |> mutate(
-  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
 ) |> dplyr::filter(
    EligibleAt == "Yes",
+   TimePoint != "Preop",
    !is.na(TimePoint)
- ) |> left_join(
+ ) |> mutate(
+  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
+) |> left_join(
    Snapshot2 |> dplyr::select(
      TreatmentID,
      SurgicalTreatment2,
@@ -627,7 +652,8 @@ PROMMSTS <- Snapshot2 |> dplyr::select(
 
 SampleSizeMSTS <- PROMMSTS |> 
   dplyr::filter(
-    SurgicalTreatment2 == "Surgical"
+    SurgicalTreatment2 == "Surgical",
+    TimePoint != "Preop"
   ) |> 
   dplyr::count(TimePoint, name = "n")
 
@@ -645,6 +671,8 @@ FigureMSTSMiss <- gg_miss_fct(PROMMSTS |> dplyr::filter(SurgicalTreatment2 == "S
 
 knitr::knit_print(FigureMSTSMiss)
 ```
+
+The MSTS (@fig-msts-miss) is presented to TumourPelvis, TumourLowerLimb and ReinterventionTKA cohorts at every followup timepoint. The medium to long-term timepoints present ongoing challenges for re-establishing patient contact by email, with only some cases appearing on the GMRS followup list (N \~ 30 each for the 60months and 120months windows - see below).
 
 ```{r}
 #| label: fig-hoos12-miss
@@ -698,7 +726,7 @@ FigureHOOSMiss <- gg_miss_fct(PROMHOOS12 |> dplyr::filter(SurgicalTreatment2 == 
     name = "% Missing",
     limits = c(50, 100)  # Set limits from 0% to 100%
   ) +
-  geom_text(data = SampleSizeMSTS, 
+  geom_text(data = SampleSizeHOOS12, 
             aes(x = TimePoint, y = 0.7, label = paste0("n=", n)),
             inherit.aes = FALSE,
             color = "white", 
@@ -710,13 +738,15 @@ FigureHOOSMiss <- gg_miss_fct(PROMHOOS12 |> dplyr::filter(SurgicalTreatment2 == 
 knitr::knit_print(FigureHOOSMiss)
 ```
 
+The HOOS12 (@fig-hoos12-miss) is presented only to the ReinterventionTHA cohort at all of the registry timepoints. The reduced capture preoperatively may be due to a number of underlying factors which are not yet clear. It may be that the cohort selection within the system has been too slow to capture patients prior to surgery or that patients are dropping out before filling in the HOOS (questionnaire fatigue) within the questionnaire pack.
+
 # Cohort Analysis
 
-The VR12 is a *general* health questionnaire that is presented to *all* patients enrolled in the registry.
+The VR12 is a *general* health questionnaire that is presented to *all* patients enrolled in the registry. It comprises two components to the score, *Physical* and *Mental*.
 
 ```{r}
 #| label: fig-vr12-cohort
-#| fig-cap: "Summary of VR12 at 12months by cohort"
+#| fig-cap: "Summary (median with interquartile ranges) of VR12 Physical Component Score at 12months by cohort"
 
 Snapshot <- dplyr::mutate(
   Snapshot,
@@ -728,7 +758,8 @@ FigureVR12 <- Snapshot |> dplyr::filter(SurgicalTreatment2 == "Surgical") |>
   stat_halfeye(
     point_interval = median_qi,  # median and interquartile range
     .width = c(0.50, 0.95),   # quartile ranges
-    interval_size_range = c(0.5, 1.5)  # Thin and bold line weights
+    interval_size_range = c(0.5, 1.5),  # Thin and bold line weights,
+    fill = "steelblue"
   )
 
 
@@ -736,7 +767,7 @@ knitr::knit_print(FigureVR12)
 
 ```
 
-Between-cohort variability is observed for the Physical Component Score of the VR12. Most notable is the high variation within all cohorts.
+Between-cohort variability is observed for the Physical Component Score of the VR12 (@fig-vr12-cohort). Most notable is the high variation within all cohorts. Interestingly, the TumourPelvis cohort presents in a bimodal distribution, with some patients with good physical function while others are quite low.
 
 ```{r}
 #| label: fig-msts
@@ -786,7 +817,15 @@ FigureMSTS <- PROMMSTS |> dplyr::filter(
 knitr::knit_print(FigureMSTS)
 ```
 
+Athough the capture for MSTS remains sparse and largely cross-sectional, a pattern of linear decrease in the median MSTS score can be observed for the TumourLowerLimb cohort in @fig-msts. The improved median score at the 10 year follow-up may reflect the impact of survivor bias on the PROMs results in this cohort.
+
+::: {#survivorbias .callout-note}
+Survivor bias is the systematic alteration of outcome measures due to the relationship between the measure and the status of the patient at followup, mediated by the length of followup. The longer the followup, the less likely that low functioning patients have survived long enough for the registry to seek PROMs from them.
+:::
+
 ## Tumour Pelvis
+
+The tumour pelvis cohort included in this report include all cases presenting with abnormal growths directly interacting with the bones of the pelvis. While this contains Ossis cases, these are not the majority of cases included.
 
 ```{r}
 #| label: tbl-tp-demographics
@@ -847,14 +886,14 @@ SnapshotTP2 <- SnapshotTP |> dplyr::mutate(
 #| fig-cap: "Survival curve for Tumour Pelvis cases by treatment type"
 
 
-FigureSurvTP <- survfit2(Surv(Duration, Status) ~ SurgicalTreatment2,
+FigureSurvTP <- survfit2(Surv(Duration, Status) ~ TreatmentType2,
                         data = SnapshotTP2
                         ) |> ggsurvfit(linewidth = 1) +
   add_confidence_interval() +
   add_risktable() +
   add_quantile(y_value = 0.5, color = "gray50", linewidth = 0.75) +
   scale_ggsurvfit() +
-  coord_cartesian(ylim = c(0.2, 1))
+  coord_cartesian(ylim = c(0, 1))
 
 knitr::knit_print(FigureSurvTP)
 
@@ -865,7 +904,7 @@ knitr::knit_print(FigureSurvTP)
 #| tbl-cap: "Summary of Tumour Pelvis Procedure Survival"
 
 TableSurvTP <- tbl_survfit(
-  survfit2(Surv(Duration, Status) ~ SurgicalTreatment2, 
+  survfit2(Surv(Duration, Status) ~ TreatmentType2, 
            data = SnapshotTP2),
   times = c(1,2,5,10),
   label_header = "**{time} Years**",
@@ -877,7 +916,11 @@ knitr::knit_print(TableSurvTP)
 
 ```
 
+The overall survival for surgical cases in this cohort are illustrated in @fig-survtp and summarised in @tbl-survTP, with median survival for revision cases occurring at \~ 6 years and primary cases achieving \~70% survival out to 10 years.
+
 ## Tumour Lower Limb
+
+The tumour lower limb cohort included in this report include all cases presenting with abnormal growths directly interacting with the bones of the lower limb that do not include the pelvis. The majority of these cases treated surgically include GMRS or MRH components.
 
 ```{r}
 #| label: tbl-tll-demographics
@@ -935,7 +978,7 @@ PROMBPI <- Snapshot |> dplyr::select(
     TreatmentID,
     SurgicalTreatment2,
     RegistryCohortName,
-    TreatmentType
+    TreatmentType2
   ),
   by = "TreatmentID"
 )
@@ -949,10 +992,9 @@ PROMBPI <- Snapshot |> dplyr::select(
 #preop_position <- which(levels(PROMGHI$TimePoint) == "Preop")
 
 FigureBPISev <- PROMBPI |> dplyr::filter(
-  #SurgicalTreatment2 == "Surgical",
-  RegistryCohortName == "TumourLowerLimb",
-  TreatmentType == "Primary"
-) |> ggplot(aes(y = BPISFSeverityScore, x = TimePoint, fill = SurgicalTreatment2, color = SurgicalTreatment2)) +
+  SurgicalTreatment2 == "Surgical",
+  RegistryCohortName == "TumourLowerLimb"
+) |> ggplot(aes(y = BPISFSeverityScore, x = TimePoint, fill = TreatmentType2, color = TreatmentType2)) +
   stat_halfeye(
     alpha = 0.5,  # Transparency for overlap visibility
     position = "identity",  # Overlay the distributions
@@ -960,8 +1002,8 @@ FigureBPISev <- PROMBPI |> dplyr::filter(
     scale = 0.9  # Slightly scale down to avoid too much overlap
   ) +
   # Add appropriate scale colors
-  scale_fill_manual(values = c("Surgical" = "steelblue", "Non-Surgical" = "darkgray", "Surgery recommended" = "darkred")) +
-  scale_color_manual(values = c("Surgical" = "steelblue4", "Non-Surgical" = "dimgray", "Surgery recommended" = "darkred")) +
+  scale_fill_manual(values = c("Primary" = "steelblue", "Revision" = "darkred")) +
+  scale_color_manual(values = c("Primary" = "steelblue", "Revision" = "darkred")) +
   labs(
     y = "BPI Severity",
     x = "Time Point",
@@ -979,6 +1021,8 @@ FigureBPISev <- PROMBPI |> dplyr::filter(
 knitr::knit_print(FigureBPISev)
 
 ```
+
+The severity of pain captured in the BPI short form remains difficult to compare between primary vs revision cases (@fig-bpi-tll) due to low sample sizes, but overall primary cases report relatively low pain up to 10 years postoperatively.
 
 ```{r}
 #| label: survival-prep-tll
@@ -1038,7 +1082,11 @@ knitr::knit_print(TableSurvTLL)
 
 ```
 
+The overall survival for surgical cases in this cohort are illustrated in @fig-survtll and summarised in @tbl-survTLL , with 60% survival for revision cases occurring at \~ 2.5 years, while for primary cases this occurred \~ 13 years.
+
 ## GMRS-MRH
+
+The surgical cases containing Stryker components are tagged in an additional field. For the purposes of this report, the label Hardware contains the first instance in the text field of GMRS or MRH. There are a number of cases where both components have been used that is not reflected in the data below (see specific sponsor reports).
 
 ```{r}
 #| label: tbl-gmrs-demographics
@@ -1048,7 +1096,6 @@ TableGMRSdemo <- gtsummary::tbl_summary(
   Snapshot |> dplyr::filter(
     stringr::str_detect(str_to_lower(Hardware), "gmrs|mrh"),
     RegistryCohortName != "TumourUpperLimb"
-    
   ) |> dplyr::select(
     RegistryCohortName,
     TreatmentType,
@@ -1072,6 +1119,8 @@ TableGMRSdemo <- gtsummary::tbl_summary(
 
 knitr::knit_print(TableGMRSdemo)
 ```
+
+The General cohort included in @tbl-gmrs-demographics include complex primary arthroplasties for deformity concomitant with osteoarthritis of the knee that have received the components of interest.
 
 ```{r}
 #| label: survival-prep-gmrs
@@ -1132,67 +1181,14 @@ knitr::knit_print(TableSurvGMRS)
 
 ```
 
-```{r}
-PROMMSTS2 <- left_join(
-  PROMMSTS,
-  SnapshotGMRS |> dplyr::select(
-    TreatmentID,
-    Hardware,
-    TreatmentType2
-  ),
-   by = "TreatmentID"
-) |> filter(
-  !is.na(Hardware)
-)
-```
+The overall survival for surgical cases in this cohort are illustrated in @fig-survgmrs and summarised in @tbl-survgmrs , with 70% survival for revision cases occurring at \~ 5 years, while for primary cases this occurred \~ 10 years.
 
 ```{r}
-#| label: fig-msts2
-#| fig-cap: "Summary of MSTS by Timepoint for GMRS | MRH cases"
+#| label: fig-vr122
+#| fig-cap: "Summary of VR12 by Timepoint"
 
 #preop_position <- which(levels(PROMQDASH$TimePoint) == "Preop")
 
-FigureMSTS2 <- PROMMSTS2 |> filter(
-  Hardware == "gmrs" | Hardware == "MRH",
-  RegistryCohortName == "ReinterventionTKA" | RegistryCohortName == "TumourLowerLimb",
-  TimePoint != "Preop"
-  ) |> ggplot(aes(y = MSTSLowerTotal, x = TimePoint, fill = TreatmentType2, color = TreatmentType2)) +
-  stat_halfeye(
-    alpha = 0.5,  # Transparency for overlap visibility
-    position = "identity",  # Overlay the distributions
-    na.rm = TRUE,
-    scale = 0.9  # Slightly scale down to avoid too much overlap
-  ) +
-  # Add appropriate scale colors "Surgery recommended" = "darkred"
-  scale_fill_manual(values = c(
-    "Primary" = "steelblue", 
-    "Revision" = "darkred"
-    )
-    ) +
-  scale_color_manual(values = c(
-    "Primary" = "steelblue", 
-    "Revision" = "darkred"
-    )
-    ) +
-  labs(
-    y = "MSTSLowerTotal",
-    x = "Time Point",
-    fill = "Treatment Type",
-    color = "Treatment Type"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.position = "top",
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  ) + facet_wrap(
-    ~RegistryCohortName, ncol = 2
-  )
-
-knitr::knit_print(FigureMSTS2)
-```
-
-```{r}
 PROMVR122 <- left_join(
   PROMVR12,
   SnapshotGMRS |> dplyr::select(
@@ -1204,13 +1200,6 @@ PROMVR122 <- left_join(
 ) |> filter(
   Hardware == "gmrs" | Hardware == "mrh"
 )
-```
-
-```{r}
-#| label: fig-vr122
-#| fig-cap: "Summary of VR12 by Timepoint"
-
-#preop_position <- which(levels(PROMQDASH$TimePoint) == "Preop")
 
 FigureVR122 <- PROMVR122 |> filter(
   # RegistryCohortName != "ReinterventionTHA"
@@ -1250,7 +1239,72 @@ FigureVR122 <- PROMVR122 |> filter(
 knitr::knit_print(FigureVR122)
 ```
 
+The VR12 Physical component data (@fig-vr122) remain difficult to interpret due to the low sample sizes and cross sectional nature of the data. Initial observations identify relative stability across timepoints for ReinterventionTKA, while TumourLowerLimb displays a more complex pattern of recovery from 6 months onwards.
+
 ```{r}
+#| label: fig-msts2
+#| fig-cap: "Summary of MSTS by Timepoint for GMRS | MRH cases"
+
+#preop_position <- which(levels(PROMQDASH$TimePoint) == "Preop")
+
+PROMMSTS2 <- left_join(
+  PROMMSTS,
+  SnapshotGMRS |> dplyr::select(
+    TreatmentID,
+    Hardware,
+    TreatmentType2,
+    Planned
+  ),
+   by = "TreatmentID"
+) |> filter(
+  !is.na(Hardware)
+)
+
+FigureMSTS2 <- PROMMSTS2 |> filter(
+  Hardware == "gmrs" | Hardware == "MRH",
+  Planned != "Yes",
+  RegistryCohortName == "ReinterventionTKA" | RegistryCohortName == "TumourLowerLimb",
+  TimePoint != "Preop"
+  ) |> ggplot(aes(y = MSTSLowerTotal, x = TimePoint, fill = TreatmentType2, color = TreatmentType2)) +
+  stat_halfeye(
+    alpha = 0.5,  # Transparency for overlap visibility
+    position = "identity",  # Overlay the distributions
+    na.rm = TRUE,
+    scale = 0.9  # Slightly scale down to avoid too much overlap
+  ) +
+  # Add appropriate scale colors "Surgery recommended" = "darkred"
+  scale_fill_manual(values = c(
+    "Primary" = "steelblue", 
+    "Revision" = "darkred"
+    )
+    ) +
+  scale_color_manual(values = c(
+    "Primary" = "steelblue", 
+    "Revision" = "darkred"
+    )
+    ) +
+  labs(
+    y = "MSTSLowerTotal",
+    x = "Time Point",
+    fill = "Treatment Type",
+    color = "Treatment Type"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) + facet_wrap(
+    ~RegistryCohortName, ncol = 2
+  )
+
+knitr::knit_print(FigureMSTS2)
+```
+
+Similarly, the cross-sectional nature of the MSTS data for this subgroup may be misleading (@fig-msts2), however differences are notable within the TumourLowerLimb cohort between primary and revision cases.
+
+```{r}
+#| eval: false
 
 # Why is TumourPelvis Blank?
 
@@ -1269,13 +1323,23 @@ SnapshotTP <- Snapshot |>  dplyr::filter(
 
 -   PROMs feedback remains relatively sparse and should be interpreted with some caution
 
+    -   The nature of some patients undergoing multiple sequential treatments within the registry complicates both PROMs capture for these cases, as well as data preparation and analysis.
+
 -   The followup of cases included in the registry remains largely cross-sectional, with few instances of serial capture of recovery
 
--   There are some noticeable trends with respect to pain (largely moderate at each timepoint) and physical function over time (linear decay for tumour lower limb) that point to the challenging recovery patients face after treatment.
+    -   Long-term PROMs should be interpreted cautiously due to the risk of survivor bias
+
+-   There are some noticeable trends with respect to pain (largely moderate at each timepoint) and physical function over time (linear decay for tumour lower limb) that point to the challenging recovery patients face after treatment
+
+-   Procedure survival should be interpreted with some skepticism due to the competing risks of mortality and contralateral surgery which has not been accounted for in the kaplan-meier curves so far.
+
+    -   Nevertheless there are distinct patterns of survival between primary and revision presentations for all cohorts.
 
 # Recommendations
 
 -   Continuing efforts to retrieve PROMs information from patients
+
+-   Engage with patients regarding their results using the web-based COMPRESSOR portal.
 
 -   Consider capture of intraoperative data on prospective or retrospective cases
 
