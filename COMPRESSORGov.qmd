@@ -16,6 +16,7 @@ editor:
 format:
   html:
     toc: true
+    toc-expand: 2
     number-sections: true
     code-fold: true
     
