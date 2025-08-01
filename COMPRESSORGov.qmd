@@ -257,7 +257,12 @@ Snapshot <- openxlsx2::wb_to_df(
       "Yes",
       "No"
     ),
-    Hardware = str_extract(str_to_lower(AnalysisLabel), "\\b[a-z]{1,5}\\b")
+    Hardware = str_extract(str_to_lower(AnalysisLabel), "\\b[a-z]{1,5}\\b"),
+    TreatmentType2 = if_else(
+    stringr::str_detect(TreatmentType, "Revision"),
+    "Revision",
+    "Primary"
+)
   ) |> unite(
   col = "CombID",
   sep = ".",
@@ -474,7 +479,7 @@ knitr::knit_print(cumulative_plot)
 
 ```{r}
 #| label: fig-baseline-miss
-#| fig-cap: "Missingness of baseline PROMs and intraoperative date by registry cohort"
+#| fig-cap: "Missingness of baseline PROMs by registry cohort"
 
 samplesizeBase <- Snapshot |> 
   dplyr::filter(
@@ -515,14 +520,13 @@ Overall, there are variable response rates for scores across cohorts.
 
 ## Patient-reported Outcomes by TimePoint
 
-```{r}
-min_percent <- 10
-max_percent <- 100  # Or another value that encompasses all your data
-```
+
 
 ```{r}
 #| label: fig-vr12-miss
 #| fig-cap: "Missingness of VR12 by Timepoint across all cohorts"
+
+
 
 PROMVR12 <- Snapshot |> dplyr::select(
   TreatmentID,
@@ -554,7 +558,13 @@ PROMVR12 <- Snapshot |> dplyr::select(
   by = "TreatmentID"
 )
 
-gg_miss_fct(PROMVR12 |> dplyr::filter(
+SampleSizeVR12 <- PROMVR12 |> 
+  dplyr::filter(
+    SurgicalTreatment2 == "Surgical"
+  ) |> 
+  dplyr::count(TimePoint, name = "n")
+
+FigureVR12Miss <- gg_miss_fct(PROMVR12 |> dplyr::filter(
       !is.na(EligibleAt),
       SurgicalTreatment2 == "Surgical"
       ) |> dplyr::select(
@@ -562,20 +572,26 @@ gg_miss_fct(PROMVR12 |> dplyr::filter(
         TimePoint
         ), 
       TimePoint
-      ) +
-  scale_fill_gradient(
-    low = "steelblue",     # Color for low missingness values
-    high = "darkred",      # Color for high missingness values
-    limits = c(min_percent, max_percent),    # Consistent scale limits
-    name = "% Missing"     # Legend title
-  )
+      ) + scale_fill_viridis_c(
+    option = "plasma",  # or "inferno", "magma", "cividis"
+    name = "% Missing",
+    limits = c(50, 100)  # Set limits from 0% to 100%
+  ) +
+  geom_text(data = SampleSizeVR12, 
+            aes(x = TimePoint, y = 0.7, label = paste0("n=", n)),
+            inherit.aes = FALSE,
+            color = "white", 
+            fontface = "bold",
+            size = 3)
+
+knitr::knit_print(FigureVR12Miss)
 
 
 ```
 
 ```{r}
 #| label: fig-msts-miss
-#| fig-cap: "Missingness of MSTS by Timepoint in the TumourPelvis cohort"
+#| fig-cap: "Missingness of MSTS by Timepoint cohort"
 
 Snapshot2 <- Snapshot |> dplyr::filter(
   !(RegistryCohortName == "TumourUpperLimb" | RegistryCohortName == "General")
@@ -610,21 +626,31 @@ PROMMSTS <- Snapshot2 |> dplyr::select(
    ),
    by = "TreatmentID"
  )
-# 
-# 
-# 
-gg_miss_fct(PROMMSTS |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dplyr::select(MSTSLowerTotal,TimePoint), TimePoint) +
-  scale_fill_gradient(
-    low = "steelblue",     # Color for low missingness values
-    high = "darkred",      # Color for high missingness values
-    limits = c(min_percent, max_percent),    # Consistent scale limits
-    name = "% Missing"     # Legend title
-  )
+
+SampleSizeMSTS <- PROMMSTS |> 
+  dplyr::filter(
+    SurgicalTreatment2 == "Surgical"
+  ) |> 
+  dplyr::count(TimePoint, name = "n")
+
+FigureMSTSMiss <- gg_miss_fct(PROMMSTS |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dplyr::select(MSTSLowerTotal,TimePoint), TimePoint) + scale_fill_viridis_c(
+    option = "plasma",  # or "inferno", "magma", "cividis"
+    name = "% Missing",
+    limits = c(50, 100)  # Set limits from 0% to 100%
+  ) +
+  geom_text(data = SampleSizeMSTS, 
+            aes(x = TimePoint, y = 0.7, label = paste0("n=", n)),
+            inherit.aes = FALSE,
+            color = "white", 
+            fontface = "bold",
+            size = 3)
+
+knitr::knit_print(FigureMSTSMiss)
 ```
 
 ```{r}
 #| label: fig-hoos12-miss
-#| fig-cap: "Missingness of HOOS12 by Timepoint in Surgical Cases"
+#| fig-cap: "Missingness of HOOS12 by Timepoint in Surgical Cases of ReinterventionTHA"
 
 
 Snapshot3 <- Snapshot |> dplyr::filter(
@@ -663,15 +689,27 @@ PROMHOOS12 <- Snapshot3 |> dplyr::select(
   by = "TreatmentID"
 )
 
+SampleSizeHOOS12 <- PROMHOOS12 |> 
+  dplyr::filter(
+    SurgicalTreatment2 == "Surgical"
+  ) |> 
+  dplyr::count(TimePoint, name = "n")
+
+FigureHOOSMiss <- gg_miss_fct(PROMHOOS12 |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dplyr::select(contains("HOOS12SummaryTotal"), TimePoint), TimePoint) + scale_fill_viridis_c(
+    option = "plasma",  # or "inferno", "magma", "cividis"
+    name = "% Missing",
+    limits = c(50, 100)  # Set limits from 0% to 100%
+  ) +
+  geom_text(data = SampleSizeMSTS, 
+            aes(x = TimePoint, y = 0.7, label = paste0("n=", n)),
+            inherit.aes = FALSE,
+            color = "white", 
+            fontface = "bold",
+            size = 3)
 
 
-gg_miss_fct(PROMHOOS12 |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dplyr::select(contains("HOOS12SummaryTotal"), TimePoint), TimePoint) +
-  scale_fill_gradient(
-    low = "steelblue",     # Color for low missingness values
-    high = "darkred",      # Color for high missingness values
-    limits = c(min_percent, max_percent),    # Consistent scale limits
-    name = "% Missing"     # Legend title
-  )
+
+knitr::knit_print(FigureHOOSMiss)
 ```
 
 # Cohort Analysis
@@ -689,7 +727,11 @@ Snapshot <- dplyr::mutate(
 
 FigureVR12 <- Snapshot |> dplyr::filter(SurgicalTreatment2 == "Surgical") |>
   ggplot(aes(y = RegistryCohortName, x = VR12PCS_12months)) +
-  stat_halfeye()
+  stat_halfeye(
+    point_interval = median_qi,  # median and interquartile range
+    .width = c(0.50, 0.95),   # quartile ranges
+    interval_size_range = c(0.5, 1.5)  # Thin and bold line weights
+  )
 
 
 knitr::knit_print(FigureVR12)
@@ -712,19 +754,20 @@ FigureMSTS <- PROMMSTS |> dplyr::filter(
     alpha = 0.5,  # Transparency for overlap visibility
     position = "identity",  # Overlay the distributions
     na.rm = TRUE,
-    scale = 0.9  # Slightly scale down to avoid too much overlap
+    scale = 0.9,  # Slightly scale down to avoid too much overlap
+    point_interval = median_qi,  # median and interquartile range
+    #.width = c(0.50, 0.95),   # quartile ranges
+    interval_size_range = c(0.5, 1.5)  # Thin and bold line weights
   ) +
   # Add appropriate scale colors "Surgery recommended" = "darkred"
   scale_fill_manual(values = c(
     "Surgical" = "steelblue", 
-    "Non-Surgical" = "darkgray",
-    "Surgery recommended" = "darkred"
+    "Non-Surgical" = "darkred"
     )
     ) +
   scale_color_manual(values = c(
     "Surgical" = "steelblue4", 
-    "Non-Surgical" = "dimgray",
-    "Surgery recommended" = "darkred"
+    "Non-Surgical" = "darkred"
     )
     ) +
   labs(
@@ -908,7 +951,7 @@ PROMBPI <- Snapshot |> dplyr::select(
 #preop_position <- which(levels(PROMGHI$TimePoint) == "Preop")
 
 FigureBPISev <- PROMBPI |> dplyr::filter(
-  SurgicalTreatment2 == "Surgical",
+  #SurgicalTreatment2 == "Surgical",
   RegistryCohortName == "TumourLowerLimb",
   TreatmentType == "Primary"
 ) |> ggplot(aes(y = BPISFSeverityScore, x = TimePoint, fill = SurgicalTreatment2, color = SurgicalTreatment2)) +
@@ -944,11 +987,10 @@ knitr::knit_print(FigureBPISev)
 
 SnapshotTLL <- Snapshot |> dplyr::filter(
   RegistryCohortName == "TumourLowerLimb",
-  SurgicalTreatment2 == "Surgical",
-  TreatmentType != "Revision"
+  SurgicalTreatment2 == "Surgical"
 )
 
-SnapshotTLL2 <- SnapshotTLL|> dplyr::mutate(
+SnapshotTLL2 <- SnapshotTLL |> dplyr::mutate(
   Status = if_else(
     TreatmentStatus == "Failed",
     1,
@@ -968,7 +1010,7 @@ SnapshotTLL2 <- SnapshotTLL|> dplyr::mutate(
 #| fig-cap: "Survival curve for Tumour Lower Limb cases by treatment type"
 
 
-FigureSurvTLL <- survfit2(Surv(Duration, Status) ~ TreatmentType,
+FigureSurvTLL <- survfit2(Surv(Duration, Status) ~ TreatmentType2,
                         data = SnapshotTLL2
                         ) |> ggsurvfit(linewidth = 1) +
   add_confidence_interval() +
@@ -986,7 +1028,7 @@ knitr::knit_print(FigureSurvTLL)
 #| tbl-cap: "Summary of Tumour Lower Limb Procedure Survival"
 
 TableSurvTLL <- tbl_survfit(
-  survfit2(Surv(Duration, Status) ~ TreatmentType, 
+  survfit2(Surv(Duration, Status) ~ TreatmentType2, 
            data = SnapshotTLL2),
   times = c(1,2,5,10),
   label_header = "**{time} Years**",
@@ -1040,13 +1082,7 @@ SnapshotGMRS <- Snapshot |> dplyr::filter(
   Hardware == "gmrs" | Hardware == "mrh",
   SurgicalTreatment2 == "Surgical",
   Planned != "Yes"
-) |> mutate(
-  TreatmentType2 = if_else(
-    stringr::str_detect(TreatmentType, "Revision"),
-    "Revision",
-    "Primary"
-  )
-)
+) 
 
 SnapshotGMRS2 <- SnapshotGMRS |> dplyr::mutate(
   Status = if_else(
