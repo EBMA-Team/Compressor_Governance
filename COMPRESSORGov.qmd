@@ -520,8 +520,6 @@ Overall, there are variable response rates for scores across cohorts.
 
 ## Patient-reported Outcomes by TimePoint
 
-
-
 ```{r}
 #| label: fig-vr12-miss
 #| fig-cap: "Missingness of VR12 by Timepoint across all cohorts"
@@ -1109,7 +1107,7 @@ FigureSurvGMRS <- survfit2(Surv(Duration, Status) ~ TreatmentType2,
                         ) |> ggsurvfit(linewidth = 1) +
   add_confidence_interval() +
   add_risktable() +
-  add_quantile(y_value = 0.6, color = "gray50", linewidth = 0.75) +
+  add_quantile(y_value = 0.7, color = "gray50", linewidth = 0.75) +
   scale_ggsurvfit() +
   coord_cartesian(ylim = c(0.2, 1))
 
@@ -1150,12 +1148,14 @@ PROMMSTS2 <- left_join(
 
 ```{r}
 #| label: fig-msts2
-#| fig-cap: "Summary of MSTS by Timepoint"
+#| fig-cap: "Summary of MSTS by Timepoint for GMRS | MRH cases"
 
 #preop_position <- which(levels(PROMQDASH$TimePoint) == "Preop")
 
 FigureMSTS2 <- PROMMSTS2 |> filter(
-  RegistryCohortName != "ReinterventionTHA"
+  Hardware == "gmrs" | Hardware == "MRH",
+  RegistryCohortName == "ReinterventionTKA" | RegistryCohortName == "TumourLowerLimb",
+  TimePoint != "Preop"
   ) |> ggplot(aes(y = MSTSLowerTotal, x = TimePoint, fill = TreatmentType2, color = TreatmentType2)) +
   stat_halfeye(
     alpha = 0.5,  # Transparency for overlap visibility
@@ -1202,7 +1202,7 @@ PROMVR122 <- left_join(
   ),
    by = "TreatmentID"
 ) |> filter(
-  !is.na(Hardware)
+  Hardware == "gmrs" | Hardware == "mrh"
 )
 ```
 
@@ -1213,7 +1213,7 @@ PROMVR122 <- left_join(
 #preop_position <- which(levels(PROMQDASH$TimePoint) == "Preop")
 
 FigureVR122 <- PROMVR122 |> filter(
-  RegistryCohortName != "ReinterventionTHA"
+  # RegistryCohortName != "ReinterventionTHA"
   ) |> ggplot(aes(y = VR12PCS, x = TimePoint, fill = TreatmentType2, color = TreatmentType2)) +
   stat_halfeye(
     alpha = 0.5,  # Transparency for overlap visibility
@@ -1248,6 +1248,21 @@ FigureVR122 <- PROMVR122 |> filter(
   )
 
 knitr::knit_print(FigureVR122)
+```
+
+```{r}
+
+# Why is TumourPelvis Blank?
+
+SnapshotTP <- Snapshot |>  dplyr::filter(
+  RegistryCohortName == "TumourPelvis",
+  Hardware == "gmrs",
+  Planned != "Yes"
+)
+
+
+# There are 9 cases, 3 ongoing and 3 prospective (2 ongoing)
+
 ```
 
 # Observations \| Interpretation
