@@ -1096,7 +1096,8 @@ The surgical cases containing Stryker components are tagged in an additional fie
 TableGMRSdemo <- gtsummary::tbl_summary(
   Snapshot |> dplyr::filter(
     stringr::str_detect(str_to_lower(Hardware), "gmrs|mrh"),
-    RegistryCohortName != "TumourUpperLimb"
+    RegistryCohortName != "TumourUpperLimb",
+    Surgeon == "RB"
   ) |> dplyr::select(
     RegistryCohortName,
     TreatmentType,
