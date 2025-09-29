@@ -573,7 +573,13 @@ PROMVR12 <- Snapshot |> dplyr::select(
     RegistryCohortName
   ),
   by = "TreatmentID"
-)
+) |> unite(
+    "TimePointID",
+    c("TreatmentID","TimePoint"),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+    )
 
 SampleSizeVR12 <- PROMVR12 |> 
   dplyr::filter(
@@ -649,7 +655,13 @@ PROMMSTS <- Snapshot2 |> dplyr::select(
      RegistryCohortName
    ),
    by = "TreatmentID"
- )
+ ) |> unite(
+    "TimePointID",
+    c("TreatmentID","TimePoint"),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+    ) 
 
 SampleSizeMSTS <- PROMMSTS |> 
   dplyr::filter(
@@ -714,7 +726,13 @@ PROMHOOS12 <- Snapshot3 |> dplyr::select(
     TreatmentStatus
   ),
   by = "TreatmentID"
-)
+) |> unite(
+    "TimePointID",
+    c("TreatmentID","TimePoint"),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+    )
 
 SampleSizeHOOS12 <- PROMHOOS12 |> 
   dplyr::filter(
@@ -919,6 +937,59 @@ knitr::knit_print(TableSurvTP)
 
 The overall survival for surgical cases in this cohort are illustrated in @fig-survtp and summarised in @tbl-survTP, with median survival for revision cases occurring at \~ 6 years and primary cases achieving \~70% survival out to 10 years.
 
+
+```{r}
+#| label: fig-msts-tp
+#| fig-cap: "Summary of MSTS by Timepoint for presentations of Tumour Pelvis treated with surgery"
+
+
+# Calculate counts for each timepoint
+count_data <- PROMMSTS |> 
+  dplyr::filter(
+    SurgicalTreatment2 == "Surgical",
+    RegistryCohortName == "TumourPelvis",
+    !is.na(MSTSLowerTotal)
+  ) |> 
+  dplyr::count(TimePoint, name = "n_responses")
+
+#preop_position <- which(levels(PROMGHI$TimePoint) == "Preop")
+
+FigureTPMSTS <- PROMMSTS |> dplyr::filter(
+  SurgicalTreatment2 == "Surgical",
+  RegistryCohortName == "TumourPelvis"
+) |> ggplot(aes(y = MSTSLowerTotal, x = TimePoint)) +
+  stat_halfeye(
+    alpha = 0.5,  # Transparency for overlap visibility
+    position = "identity",  # Overlay the distributions
+    na.rm = TRUE,
+    scale = 0.9  # Slightly scale down to avoid too much overlap
+  ) +
+  geom_text(
+    data = count_data,
+    aes(x = TimePoint, y = Inf, label = paste0("n=", n_responses)),
+    vjust = 1.2,
+    hjust = 0.5,
+    size = 3.5,
+    inherit.aes = FALSE
+  ) +
+  labs(
+    y = "MSTS Total",
+    x = "Time Point"
+    # fill = "Treatment",
+    # color = "Treatment"
+  ) +
+  theme_minimal() +
+  theme(
+    # legend.position = "top",
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+
+knitr::knit_print(FigureTPMSTS)
+
+```
+
 ## Tumour Lower Limb
 
 The tumour lower limb cohort included in this report include all cases presenting with abnormal growths directly interacting with the bones of the lower limb that do not include the pelvis. The majority of these cases treated surgically include GMRS or MRH components.
@@ -982,7 +1053,13 @@ PROMBPI <- Snapshot |> dplyr::select(
     TreatmentType2
   ),
   by = "TreatmentID"
-)
+) |> unite(
+    "TimePointID",
+    c("TreatmentID","TimePoint"),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+    )
 
 ```
 
@@ -1130,7 +1207,8 @@ The General cohort included in @tbl-gmrs-demographics include complex primary ar
 SnapshotGMRS <- Snapshot |> dplyr::filter(
   Hardware == "gmrs" | Hardware == "mrh",
   SurgicalTreatment2 == "Surgical",
-  Planned != "Yes"
+  Planned != "Yes",
+  Surgeon == "RB"
 ) 
 
 SnapshotGMRS2 <- SnapshotGMRS |> dplyr::mutate(
@@ -1320,6 +1398,257 @@ SnapshotTP <- Snapshot |>  dplyr::filter(
 # There are 9 cases, 3 ongoing and 3 prospective (2 ongoing)
 
 ```
+
+### PROMs Capture
+
+Target numbers retrieved from [Synopsis](https://docs.google.com/document/d/1u2V1-J337kgyolVJxOBVcHWOvEHkMGrmdLkX4it4mh8/edit)
+
+::: {#synopsis-targets}
+Complex primary TKA: 67 cases
+
+Revision TKA: 79 cases
+
+Distal femoral reconstruction: 53 cases
+
+Proximal tibial reconstruction: 55 cases
+
+Proximal femoral reconstruction: 78 cases
+
+Total femoral replacement: As available
+
+Femoral diaphyseal defect reconstruction: As available
+:::
+
+```{r}
+
+PROMKOOS12 <- Snapshot |> dplyr::select(
+  TreatmentID,
+  starts_with("KOOS12_Summary"),
+  starts_with("EligibleAt"),
+  -EligibleAtIntraop
+) |> rename_with(
+  ~gsub("KOOS12_Summary_TotalScore","KOOS12SummaryTotal",.x, fixed = TRUE)
+) |>  rename_with(
+  ~gsub("Atx","At_",.x, fixed = TRUE)
+) |> rename(
+  EligibleAt_Preop = "EligibleAtPreop"
+) |> pivot_longer(
+  cols = !TreatmentID,
+  names_to = c(".value","TimePoint"),
+  names_sep = "_",
+  values_drop_na = TRUE
+) |> mutate(
+  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
+  KOOS12SummaryTotal = as.numeric(KOOS12SummaryTotal)
+) |> dplyr::filter(
+  EligibleAt == "Yes",
+  !is.na(TimePoint)
+) |> left_join(
+  Snapshot |> dplyr::select(
+    TreatmentID,
+    SurgicalTreatment2,
+    TreatmentType,
+    TreatmentStatus
+  ),
+  by = "TreatmentID"
+) |> unite(
+    "TimePointID",
+    c("TreatmentID","TimePoint"),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+    )
+
+
+SnapshotGMRSPROM <- SnapshotGMRS2 |> dplyr::select(
+  TreatmentID,
+  TreatmentType,
+  RegistryCohortName,
+  DiagnosisRawPrelim,
+  starts_with("Eligible")
+) |> dplyr::mutate(
+  across(everything(), ~replace_na(.x, "No")),
+  ComplexTKA = if_else((RegistryCohortName == "General") | (TreatmentType == "Primary" & stringr::str_detect(str_to_lower(DiagnosisRawPrelim),"knee|mrh")),"ComplexPrimaryTKA",NA_character_),
+    RevisionTKA = if_else((RegistryCohortName == "ReinterventionTKA") | (stringr::str_detect(str_to_lower(TreatmentType), "revision") & stringr::str_detect(str_to_lower(DiagnosisRawPrelim),"knee|mrh")),"RevisionTKA",NA_character_),
+  ProximalFemur = if_else(stringr::str_detect(str_to_lower(DiagnosisRawPrelim),"proximal fem"), "ProximalFemur",NA_character_
+  ),
+  Intercalary = if_else(stringr::str_detect(str_to_lower(DiagnosisRawPrelim),"intercalary"), "Intercalary",NA_character_
+  ),
+ TotalFemur = if_else(stringr::str_detect(str_to_lower(DiagnosisRawPrelim),"total fem"),  "TotalFemur",NA_character_
+  ),
+  DistalFemur = if_else(stringr::str_detect(str_to_lower(DiagnosisRawPrelim),"distal fem"),  "DistalFemur",NA_character_
+  ),
+   ProximalTibia = if_else(stringr::str_detect(str_to_lower(DiagnosisRawPrelim),"prox.*tibia"),  "ProximalTibia",NA_character_
+  )
+  ) |> pivot_longer(
+    cols = ComplexTKA:ProximalTibia,
+    names_to = "UsageComponent",
+    values_to = "Usage",
+    values_drop_na = TRUE
+  ) |> pivot_longer(
+    cols = starts_with("EligibleAt"),
+    names_to = "TimePoint",
+    values_to = "Eligibility",
+    values_drop_na = TRUE,
+    names_prefix = "EligibleAt"
+  ) |> filter(
+    TimePoint != "Intraop",
+    Eligibility == "Yes"
+    ) |> mutate(
+    TimePoint = stringr::str_remove(TimePoint,"x"),
+    TimePoint = forcats::fct(TimePoint, levels = c("Preop","3months","6months","12months","24months","60months","120months"))
+  ) |> unite(
+    "TimePointID",
+    c("TreatmentID","TimePoint"),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+    ) |> dplyr::select(
+    -Eligibility
+  ) |> left_join(
+    PROMMSTS |> dplyr::select(TimePointID,MSTSLowerTotal),
+    by = "TimePointID"
+  ) |> left_join(
+    PROMHOOS12 |> dplyr::select(TimePointID,HOOS12SummaryTotal),
+    by = "TimePointID"
+  ) |> left_join(
+    PROMKOOS12 |> dplyr::select(TimePointID,KOOS12SummaryTotal),
+    by = "TimePointID"
+  ) |> naniar::add_shadow(MSTSLowerTotal,HOOS12SummaryTotal,KOOS12SummaryTotal)
+
+```
+
+```{r}
+
+
+TableEligible <- gtsummary::tbl_summary(
+  SnapshotGMRSPROM,
+  include = -(c(TreatmentID,TimePointID, UsageComponent,TreatmentType,DiagnosisRawPrelim,MSTSLowerTotal,HOOS12SummaryTotal,KOOS12SummaryTotal)),
+by = "Usage",
+label = list(
+  MSTSLowerTotal_NA = "MSTS Captured",
+  HOOS12SummaryTotal_NA = "HOOS12 Captured",
+  KOOS12SummaryTotal_NA = "KOOS12 Captured"
+),
+type = list(
+  MSTSLowerTotal_NA = "dichotomous",
+  HOOS12SummaryTotal_NA = "dichotomous",
+  KOOS12SummaryTotal_NA = "dichotomous"
+),
+value = list(
+  MSTSLowerTotal_NA = "!NA",
+  HOOS12SummaryTotal_NA = "!NA",
+  KOOS12SummaryTotal_NA = "!NA"
+),
+missing = "no"
+) |> add_overall()
+
+
+knitr::knit_print(TableEligible)
+
+
+```
+
+
+```{r}
+
+TableCapture1 <- gtsummary::tbl_summary(
+  SnapshotGMRSPROM |> filter(
+    Usage == "ComplexPrimaryTKA"
+  ),
+  include = c(
+    TimePoint,
+  MSTSLowerTotal_NA,
+  HOOS12SummaryTotal_NA,
+  KOOS12SummaryTotal_NA
+    ),
+  label = list(
+  MSTSLowerTotal_NA = "MSTS Captured",
+  HOOS12SummaryTotal_NA = "HOOS12 Captured",
+  KOOS12SummaryTotal_NA = "KOOS12 Captured"
+),
+type = list(
+  MSTSLowerTotal_NA = "dichotomous",
+  HOOS12SummaryTotal_NA = "dichotomous",
+  KOOS12SummaryTotal_NA = "dichotomous"
+),
+value = list(
+  MSTSLowerTotal_NA = "!NA",
+  HOOS12SummaryTotal_NA = "!NA",
+  KOOS12SummaryTotal_NA = "!NA"
+),
+missing = "no",
+by = "TimePoint"
+)
+
+
+TableCapture1
+```
+
+
+```{r}
+library(tidyverse)
+library(gtsummary)
+library(epoxy)
+
+generate_usage_summaries <- function(data) {
+  # Get distinct usage values
+  usage_terms <- data |> 
+    distinct(Usage) |> 
+    pull(Usage)
+  
+  # Create summary tables for each usage term
+  summary_tables <- map(usage_terms, \(usage_term) {
+    epoxy("Creating summary table for Usage: {usage_term}")
+    
+    gtsummary::tbl_summary(
+      data |> filter(Usage == usage_term),
+      include = c(
+        TimePoint,
+        MSTSLowerTotal_NA,
+        HOOS12SummaryTotal_NA,
+        KOOS12SummaryTotal_NA
+      ),
+      label = list(
+        MSTSLowerTotal_NA = "MSTS Captured",
+        HOOS12SummaryTotal_NA = "HOOS12 Captured",
+        KOOS12SummaryTotal_NA = "KOOS12 Captured"
+      ),
+      type = list(
+        MSTSLowerTotal_NA = "dichotomous",
+        HOOS12SummaryTotal_NA = "dichotomous",
+        KOOS12SummaryTotal_NA = "dichotomous"
+      ),
+      value = list(
+        MSTSLowerTotal_NA = "!NA",
+        HOOS12SummaryTotal_NA = "!NA",
+        KOOS12SummaryTotal_NA = "!NA"
+      ),
+      missing = "no",
+      by = "TimePoint"
+    ) |> 
+    modify_header(all_stat_cols() ~ "**{level}**")
+  })
+  
+  # Name the list elements with usage terms
+  names(summary_tables) <- usage_terms
+  
+  # Stack the tables using tbl_stack with quiet = TRUE to suppress header messages
+  stacked_table <- tbl_stack(summary_tables, group_header = names(summary_tables), quiet = TRUE)
+  
+  return(stacked_table)
+}
+
+# Usage example:
+# stacked_summary <- generate_usage_summaries(SnapshotGMRSPROM)
+```
+
+```{r}
+# stacked_summary <- generate_usage_summaries(SnapshotGMRSPROM)
+
+knitr::knit_print(stacked_summary)
+```
+
 
 # Observations \| Interpretation
 
