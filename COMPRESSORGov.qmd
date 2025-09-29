@@ -7,7 +7,7 @@ type: "website"
 number-sections: true
 number-depth: 3
 date: "2025-Jul-31"
-date-modified: "2025-Sep-17"
+date-modified: "2025-Sep-22"
 
 bibliography: CompressorGov references.bib
 
@@ -204,7 +204,7 @@ colnames(PatientTable) <- Patient_Col
 
 ```
 
-A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (17-Sep-2025).
+A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (22-Sep-2025).
 
 ```{r}
 
@@ -212,7 +212,7 @@ A static registry snapshot was retrieved and formatted based on the fixed date o
 gs4_auth(token = drive_token())
 
 # To get a snapshot from a specific folder (e.g., "20230415")
-specific_snapshot <- get_specific_snapshot("20250917")
+specific_snapshot <- get_specific_snapshot("20250922")
 
 
 ```
