@@ -1584,9 +1584,7 @@ TableCapture1
 ```
 
 ```{r}
-library(tidyverse)
-library(gtsummary)
-library(epoxy)
+#| label: generate-summary-func
 
 generate_usage_summaries <- function(data) {
   # Get distinct usage values
@@ -1636,15 +1634,33 @@ generate_usage_summaries <- function(data) {
   return(stacked_table)
 }
 
-# Usage example:
-# stacked_summary <- generate_usage_summaries(SnapshotGMRSPROM)
+
 ```
 
 ```{r}
-# stacked_summary <- generate_usage_summaries(SnapshotGMRSPROM)
+#| label: tbl-capture-stack
+#| tbl-cap: "Summary of PROMs capture for GMRS components per hardware category over timepoints"
+
+stacked_summary <- generate_usage_summaries(SnapshotGMRSPROM)
 
 knitr::knit_print(stacked_summary)
 ```
+
+```{r}
+#| label: summary-save
+#| eval: false
+
+
+
+    Stack_summary_gt <- stacked_summary |> gtsummary::as_gt()
+
+gt::gtsave(
+      data = Stack_summary_gt,
+      filename = "GMRS_Capture.png"
+    )
+
+```
+
 
 # Observations \| Interpretation
 
