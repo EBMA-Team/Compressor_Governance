@@ -1518,8 +1518,6 @@ SnapshotGMRSPROM <- SnapshotGMRS2 |> dplyr::select(
 ```
 
 ```{r}
-
-
 TableEligible <- gtsummary::tbl_summary(
   SnapshotGMRSPROM,
   include = -(c(TreatmentID,TimePointID, UsageComponent,TreatmentType,DiagnosisRawPrelim,MSTSLowerTotal,HOOS12SummaryTotal,KOOS12SummaryTotal)),
@@ -1546,9 +1544,30 @@ missing = "no"
 knitr::knit_print(TableEligible)
 
 
+
 ```
 
+
 ```{r}
+#| label: eligible-save
+#| eval: false
+
+
+
+    TableEligible_gt <- TableEligible |> gtsummary::as_gt()
+
+gt::gtsave(
+      data = TableEligible_gt,
+      filename = "GMRS_Eligible.png"
+    )
+
+```
+
+
+
+```{r}
+#| label: initial-capture
+#| eval: false
 
 TableCapture1 <- gtsummary::tbl_summary(
   SnapshotGMRSPROM |> filter(
