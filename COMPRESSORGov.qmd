@@ -7,7 +7,7 @@ type: "website"
 number-sections: true
 number-depth: 3
 date: "2025-Jul-31"
-date-modified: "2025-Sep-22"
+date-modified: "2025-Sep-30"
 
 bibliography: CompressorGov references.bib
 
@@ -204,7 +204,7 @@ colnames(PatientTable) <- Patient_Col
 
 ```
 
-A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (22-Sep-2025).
+A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (30-Sep-2025).
 
 ```{r}
 
@@ -212,7 +212,7 @@ A static registry snapshot was retrieved and formatted based on the fixed date o
 gs4_auth(token = drive_token())
 
 # To get a snapshot from a specific folder (e.g., "20230415")
-specific_snapshot <- get_specific_snapshot("20250922")
+specific_snapshot <- get_specific_snapshot("20250930")
 
 
 ```
@@ -937,7 +937,6 @@ knitr::knit_print(TableSurvTP)
 
 The overall survival for surgical cases in this cohort are illustrated in @fig-survtp and summarised in @tbl-survTP, with median survival for revision cases occurring at \~ 6 years and primary cases achieving \~70% survival out to 10 years.
 
-
 ```{r}
 #| label: fig-msts-tp
 #| fig-cap: "Summary of MSTS by Timepoint for presentations of Tumour Pelvis treated with surgery"
@@ -1549,7 +1548,6 @@ knitr::knit_print(TableEligible)
 
 ```
 
-
 ```{r}
 
 TableCapture1 <- gtsummary::tbl_summary(
@@ -1584,7 +1582,6 @@ by = "TimePoint"
 
 TableCapture1
 ```
-
 
 ```{r}
 library(tidyverse)
@@ -1648,7 +1645,6 @@ generate_usage_summaries <- function(data) {
 
 knitr::knit_print(stacked_summary)
 ```
-
 
 # Observations \| Interpretation
 
