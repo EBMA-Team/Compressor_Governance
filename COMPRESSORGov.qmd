@@ -1547,7 +1547,6 @@ knitr::knit_print(TableEligible)
 
 ```
 
-
 ```{r}
 #| label: eligible-save
 #| eval: false
@@ -1562,8 +1561,6 @@ gt::gtsave(
     )
 
 ```
-
-
 
 ```{r}
 #| label: initial-capture
@@ -1680,6 +1677,85 @@ gt::gtsave(
 
 ```
 
+### PROMs Export
+
+Needs to be exported in the following column format;
+
+-   PatientID
+
+-   TreatmentID
+
+-   RegistryCohortName
+
+-   PROMSelect
+
+-   Eligible2year
+
+-   Eligible5year
+
+-   Eligible10year
+
+-   Score 2\|5\|10yr
+
+-   MortalityStatus
+
+-   ProductNum1\|2\|3\|4
+
+-   TreatmentType (PrimaryRevision)
+
+-   GMRSUsage (ProxFemur, ProxTib, etc)
+
+PivotLonger SnapshotGMRSPROM (collapse questionnaire columns into multiple rows) and then PivotWider (Splitout timepoint column rows into multiple columns for the same score row)
+
+```{r}
+
+GMRSExport <- SnapshotGMRS2 |> dplyr::select(
+  TreatmentID,
+  RegistryCohortName,
+  starts_with("Eligible"),
+  TreatmentStatusNotes,
+  RegistryStatusNotes,
+  (contains("MSTSLower")|contains("KOOS12_Summary")|contains("HOOS12_Summary")) & contains("Total"),
+  contains("VR12PCS")
+) |> mutate(
+  across(starts_with("Eligible"), ~tidyr::replace_na(.x, "No")),
+  Mortality = if_else(
+    stringr::str_detect(str_to_lower(TreatmentStatusNotes),"deceas") | stringr::str_detect(str_to_lower(RegistryStatusNotes),"deceas|mortality"),
+    "Yes",
+    "No"
+  ),
+  Mortality = replace_na(Mortality,"No"),
+  PROMSelect = case_when(
+    RegistryCohortName == "General" ~ "VR12PCS",
+    RegistryCohortName == "TumourLowerLimb" ~ "MSTSLowerTotal",
+    RegistryCohortName == "ReinterventionTKA" ~ "KOOS12SummaryTotalScore",
+    RegistryCohortName == "ReinterventionTHA" ~ "HOOS12SummaryTotalScore",
+    RegistryCohortName == "TumourPelvis" ~ "MSTSLowerTotal"
+  )
+  ) |> relocate(
+    Mortality,
+    .after = RegistryStatusNotes
+  ) |> relocate(
+    EligibleAtx12months,
+    .after = EligibleAtx6months
+  )|> rename_with(
+    ~ gsub("_", "", .x, fixed = TRUE)
+  ) |> filter(
+    if_any(c(EligibleAtx12months, EligibleAtx24months, EligibleAtx60months,EligibleAtx120months), ~.x == "Yes")
+  ) |> dplyr::select(
+    -(c(
+      TreatmentStatusNotes,
+      RegistryStatusNotes,
+      ends_with("3months"),
+      ends_with("6months"),
+      ends_with("Intraop"),
+      ends_with("Preop")
+    )
+    )
+  )
+
+
+```
 
 # Observations \| Interpretation
 
