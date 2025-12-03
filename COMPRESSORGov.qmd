@@ -37,6 +37,7 @@ Analysis packages were loaded initially into the *R* environment.
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(# Load required packages
+  "fuzzyjoin",
   "ggforce",
   "ggdag",
   "ggmap",
@@ -1679,6 +1680,30 @@ gt::gtsave(
 
 ### PROMs Export
 
+```{r}
+
+#retrieve product details
+
+# Authenticate for sheets using the same token
+gs4_auth(token = drive_token())
+
+ProductUsage<- read_sheet("https://docs.google.com/spreadsheets/d/1e_rIjH1MQ5BVnxd8ziAiWpT-GxhN9SOlSh5ORtL4rRQ/edit",
+                          sheet = "RB_usage",
+                          col_names = TRUE,
+                          col_types = "Dcci")
+
+ProductTable <- read_sheet("https://docs.google.com/spreadsheets/d/1e_rIjH1MQ5BVnxd8ziAiWpT-GxhN9SOlSh5ORtL4rRQ/edit",
+                          sheet = "Items",
+                          col_names = TRUE,
+                          col_types = "cc")
+
+
+
+
+```
+
+\
+
 Needs to be exported in the following column format;
 
 -   PatientID
@@ -1713,6 +1738,10 @@ GMRSExport <- SnapshotGMRS2 |> dplyr::select(
   TreatmentID,
   RegistryCohortName,
   starts_with("Eligible"),
+  TreatmentType,
+  DateTreatment,
+  DiagnosisRawPrelim,
+  AffectedSide,
   TreatmentStatusNotes,
   RegistryStatusNotes,
   (contains("MSTSLower")|contains("KOOS12_Summary")|contains("HOOS12_Summary")) & contains("Total"),
@@ -1724,6 +1753,11 @@ GMRSExport <- SnapshotGMRS2 |> dplyr::select(
     "Yes",
     "No"
   ),
+  TreatmentType2 = if_else(
+    str_detect(TreatmentType,"Revision"),
+    "Revision",
+    "Primary"
+  ),
   Mortality = replace_na(Mortality,"No"),
   PROMSelect = case_when(
     RegistryCohortName == "General" ~ "VR12PCS",
@@ -1731,7 +1765,8 @@ GMRSExport <- SnapshotGMRS2 |> dplyr::select(
     RegistryCohortName == "ReinterventionTKA" ~ "KOOS12SummaryTotalScore",
     RegistryCohortName == "ReinterventionTHA" ~ "HOOS12SummaryTotalScore",
     RegistryCohortName == "TumourPelvis" ~ "MSTSLowerTotal"
-  )
+  ),
+  DateTreatment = lubridate::ymd(DateTreatment)
   ) |> relocate(
     Mortality,
     .after = RegistryStatusNotes
@@ -1755,6 +1790,143 @@ GMRSExport <- SnapshotGMRS2 |> dplyr::select(
   )
 
 
+```
+
+```{r}
+
+GMRSExport2 <- GMRSExport |>
+  mutate(
+    Score1yr = case_when(
+      PROMSelect == "MSTSLowerTotal" ~ MSTSLowerTotal12months,
+      PROMSelect == "KOOS12SummaryTotalScore" ~ KOOS12SummaryTotalScore12months,
+      PROMSelect == "HOOS12SummaryTotalScore" ~ HOOS12SummaryTotalScore12months,
+      PROMSelect == "VR12PCS" ~ VR12PCS12months,
+      .default = NA_real_
+    ),
+    Score2yr = case_when(
+      PROMSelect == "MSTSLowerTotal" ~ MSTSLowerTotal24months,
+      PROMSelect == "KOOS12SummaryTotalScore" ~ KOOS12SummaryTotalScore24months,
+      PROMSelect == "HOOS12SummaryTotalScore" ~ HOOS12SummaryTotalScore24months,
+      PROMSelect == "VR12PCS" ~ VR12PCS24months,
+      .default = NA_real_
+    ),
+    Score5yr = case_when(
+      PROMSelect == "MSTSLowerTotal" ~ MSTSLowerTotal60months,
+      PROMSelect == "KOOS12SummaryTotalScore" ~ KOOS12SummaryTotalScore60months,
+      PROMSelect == "HOOS12SummaryTotalScore" ~ HOOS12SummaryTotalScore60months,
+      PROMSelect == "VR12PCS" ~ VR12PCS60months,
+      .default = NA_real_
+    ),
+    Score10yr = case_when(
+      PROMSelect == "MSTSLowerTotal" ~ MSTSLowerTotal120months,
+      PROMSelect == "KOOS12SummaryTotalScore" ~ KOOS12SummaryTotalScore120months,
+      PROMSelect == "HOOS12SummaryTotalScore" ~ HOOS12SummaryTotalScore120months,
+      PROMSelect == "VR12PCS" ~ VR12PCS120months,
+      .default = NA_real_
+    )
+  ) |> dplyr::select(
+    TreatmentID,
+    RegistryCohortName,
+    TreatmentType2,
+    DiagnosisRawPrelim,
+    DateTreatment,
+    PROMSelect,
+    EligibleAtx12months,
+    EligibleAtx24months,
+    EligibleAtx60months,
+    EligibleAtx120months,
+    Score1yr,
+    Score2yr,
+    Score5yr,
+    Score10yr,
+    Mortality
+  ) 
+
+```
+
+Add product information
+
+```{r}
+
+ProductUsage1 <- ProductUsage |> left_join(
+  ProductTable,
+  by = "Code"
+)
+
+```
+
+```{r}
+# try and left_join between treatment data and productinfo
+
+ProductUsage2 <- ProductUsage1 |> dplyr::filter(
+  DateSurgery %in% GMRSExport2$DateTreatment
+)
+
+
+```
+
+```{r}
+
+GMRSProduct <- GMRSExport2 |> dplyr::select(
+  TreatmentID,
+  DateTreatment
+) |> left_join(
+  ProductUsage2 |> dplyr::select(
+    DateSurgery,
+    Code,
+    Description
+  ),
+join_by(DateTreatment == DateSurgery),
+relationship = "many-to-many"
+) |> group_by(
+  TreatmentID
+) |> distinct(Code, .keep_all = TRUE) |> mutate(
+  ProductN = row_number()
+) |> ungroup()
+
+
+```
+
+The matching on date is not perfect - need to supplement with a fuzzy match
+
+```{r}
+GMRSProductAlt <- GMRSExport2 |> 
+  select(TreatmentID, DateTreatment, DiagnosisRawPrelim) |> 
+  fuzzy_left_join(
+    ProductUsage2 |> select(DateSurgery, Code, Description),
+    by = c("DateTreatment" = "DateSurgery"),
+    match_fun = list(function(x, y) abs(x - y) <= 3)
+  ) |> mutate(
+    DateDifference = abs(DateTreatment - DateSurgery)
+  ) |> arrange(TreatmentID, DateTreatment, DateDifference) |> mutate(
+    Match = case_when(
+    DateDifference = 0 ~ "Match"
+  )
+  )
+```
+
+```{r}
+GMRSProduct2 <- GMRSProduct |>
+  pivot_wider(
+    id_cols = c(TreatmentID, DateTreatment),
+    names_from = ProductN,
+    values_from = Code,
+    names_prefix = "ProductNum"
+  )
+```
+
+```{r}
+
+GMRSExport3 <- left_join(
+  GMRSExport2,
+  GMRSProduct2 |> dplyr::select(
+    TreatmentID,
+    ProductNum1:ProductNum15
+  ),
+  by = "TreatmentID"
+)
+
+write_xlsx(x = GMRSExport3, file = "GMRSMilestoneExp.xlsx", overwrite = TRUE)
 ```
 
 # Observations \| Interpretation
