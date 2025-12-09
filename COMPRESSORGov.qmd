@@ -1867,22 +1867,26 @@ ProductUsage2 <- ProductUsage1 |> dplyr::filter(
 
 ```{r}
 
+#Holly requested exact match
+
 GMRSProduct <- GMRSExport2 |> dplyr::select(
   TreatmentID,
   DateTreatment
 ) |> left_join(
-  ProductUsage2 |> dplyr::select(
-    DateSurgery,
-    Code,
-    Description
-  ),
-join_by(DateTreatment == DateSurgery),
-relationship = "many-to-many"
+  ProductUsage2 |> dplyr::select(DateSurgery, Code, Description),
+  join_by("DateTreatment" == "DateSurgery"),
+  relationship = "many-to-many"
 ) |> group_by(
   TreatmentID
 ) |> distinct(Code, .keep_all = TRUE) |> mutate(
   ProductN = row_number()
 ) |> ungroup()
+  
+  
+  # fuzzy_left_join(
+  #   ProductUsage2 |> select(DateSurgery, Code, Description),
+  #   by = c("DateTreatment" = "DateSurgery"),
+  #   match_fun = list(function(x, y) abs(x - y) <= 5)
 
 
 ```
@@ -1895,12 +1899,12 @@ GMRSProductAlt <- GMRSExport2 |>
   fuzzy_left_join(
     ProductUsage2 |> select(DateSurgery, Code, Description),
     by = c("DateTreatment" = "DateSurgery"),
-    match_fun = list(function(x, y) abs(x - y) <= 3)
+    match_fun = list(function(x, y) abs(x - y) <= 5)
   ) |> mutate(
-    DateDifference = abs(DateTreatment - DateSurgery)
+    DateDifference = as.numeric(abs(DateTreatment - DateSurgery))
   ) |> arrange(TreatmentID, DateTreatment, DateDifference) |> mutate(
     Match = case_when(
-    DateDifference = 0 ~ "Match"
+    DateDifference == 0 ~ "Match"
   )
   )
 ```
@@ -1924,7 +1928,7 @@ GMRSExport3 <- left_join(
     ProductNum1:ProductNum15
   ),
   by = "TreatmentID"
-)
+) |> arrange(DateTreatment)
 
 write_xlsx(x = GMRSExport3, file = "GMRSMilestoneExp.xlsx", overwrite = TRUE)
 ```
