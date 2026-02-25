@@ -33,3 +33,4 @@ docs/
 po/*~
 # RStudio Connect folder
 rsconnect/
+AORAPatient.csv
