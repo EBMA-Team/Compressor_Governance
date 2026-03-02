@@ -1515,8 +1515,6 @@ SnapshotGMRSPROM <- SnapshotGMRS2 |> dplyr::select(
 
 ```
 
-
-
 ```{r}
 
 #| label: tbl-promeligible
@@ -1526,7 +1524,7 @@ eligible_summary <- SnapshotGMRSPROM |>
   summarise(
     n_eligible = sum(Eligibility == "Yes", na.rm = TRUE),
     .by = c(TimePoint, Usage)
-  )
+  ) |> arrange(TimePoint)
 
 # Main body: n_eligible per TimePoint x Usage
 main_table <- eligible_summary |>
@@ -1569,12 +1567,18 @@ footer_active <- SnapshotGMRSPROM |>
 
 # Bind and render
 bind_rows(main_table, footer_total, footer_active) |>
-  knitr::kable(
-    caption = "Summary of PROMs Capture by Timepoint for GMRS | MRH cases"
-  )
+  gt::gt(rowname_col = " ") |>
+  gt::tab_header(
+    title = "Summary of PROMs Eligibility by Timepoint for GMRS | MRH cases"
+  ) |>
+  gt::tab_style(
+    style = gt::cell_text(weight = "bold"),
+    locations = gt::cells_stub(rows = c("N Cases (Total)", "N Cases (Active)"))
+  ) |>
+  gt::opt_stylize(style = 1) |>
+  gt::opt_table_font(font = gt::google_font("Inter"))
 
 ```
-
 
 ```{r}
 #| label: tbl-promcapture
@@ -1589,7 +1593,7 @@ returned_summary <- SnapshotGMRSPROM |>
   summarise(
     n_returned = sum(returned, na.rm = TRUE),
     .by = c(TimePoint, Usage)
-  )
+  ) |> arrange(TimePoint)
 
 # Join to eligible counts to calculate percentage
 returned_table <- returned_summary |>
@@ -1610,18 +1614,13 @@ returned_table <- returned_summary |>
 
 # Render
 returned_table |>
-  knitr::kable(
-    caption = "Summary of Returned PROMs by Timepoint for GMRS | MRH cases"
-  )
+  gt::gt(rowname_col = " ") |>
+  gt::tab_header(
+    title = "Summary of Returned PROMs by Timepoint for GMRS | MRH cases"
+  ) |>
+  gt::opt_stylize(style = 1) |>
+  gt::opt_table_font(font = gt::google_font("Inter"))
 ```
-
-
-
-
-
-
-
-
 
 ```{r}
 #| label: tbl-promcapture
