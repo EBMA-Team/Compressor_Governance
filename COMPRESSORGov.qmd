@@ -2042,6 +2042,69 @@ GMRSExport3 <- left_join(
 write_xlsx(x = GMRSExport3, file = "GMRSMilestoneExp.xlsx", overwrite = TRUE)
 ```
 
+## 3DPI
+
+The surgical cases containing Ossis components are tagged in an additional field. For the purposes of this report, the label Hardware contains the first instance in the text field of GMRS or MRH. There are a number of cases where both components have been used that is not reflected in the data below (see specific sponsor reports).
+
+
+```{r}
+PrintPelMaster <- STROBEInput |> mutate(
+    PatientID = stringr::str_split_i(TreatmentID,"\\.",1),
+    LimbID = stringr::str_c(PatientID,".",AffectedSide)
+  ) |> group_by(
+    LimbID
+  ) |> arrange(
+    DateTreatment
+  ) |> mutate(
+    Count = row_number()
+  ) |> ungroup() |> dplyr::filter(
+    stringr::str_detect(str_to_lower(AnalysisLabel), "ossis"),
+    stringr::str_detect(str_to_lower(AnalysisLabel), "plan|in-situ", negate = TRUE),
+    Count == 1
+    #Surgeon == "RB"
+  ) 
+
+PrintPelAll <- STROBEInput |> mutate(
+    PatientID = stringr::str_split_i(TreatmentID,"\\.",1)
+  ) |> dplyr::filter(
+  PatientID %in% PrintPelMaster$PatientID
+)
+```
+
+
+
+```{r}
+#| label: tbl-ossis-demographics
+#| tbl-cap: "Summary of demographics in 3DPI(Ossis) cohort"
+
+Table3DPIdemo <- gtsummary::tbl_summary(
+  Snapshot |> dplyr::filter(
+    stringr::str_detect(str_to_lower(AnalysisLabel), "ossis")
+    #Surgeon == "RB"
+  ) |> dplyr::select(
+    RegistryCohortName,
+    TreatmentType,
+    SurgicalTreatment2,
+    TreatmentStatus,
+    DateInitialExamination,
+    AgeAtInitialExam,
+    Sex2,
+    #Hardware,
+    Retrospective
+    # EducationLevel_Preop,
+    # DiagnosisPrimary
+  ),
+  by = "RegistryCohortName",
+  missing = "no",
+  statistic = list(
+    DateInitialExamination ~ "{min} - {max}"
+  )
+) |>
+  add_overall()
+
+knitr::knit_print(Table3DPIdemo)
+```
+
 # Observations \| Interpretation
 
 -   PROMs feedback remains relatively sparse and should be interpreted with some caution
