@@ -261,7 +261,9 @@ Snapshot <- openxlsx2::wb_to_df(
     stringr::str_detect(TreatmentType, "Revision"),
     "Revision",
     "Primary"
-)
+),
+AgeAtInitialExam = as.numeric(AgeAtInitialExam),
+AgeAtTreatment = as.numeric(AgeAtTreatment)
   ) |> unite(
   col = "CombID",
   sep = ".",
@@ -556,7 +558,9 @@ PROMVR12 <- Snapshot |> dplyr::select(
   ~gsub("VR12_PCS","VR12PCS",.x, fixed = TRUE)
 ) |> dplyr::rename(
   EligibleAt_Preop = "EligibleAtPreop"
-  ) |> pivot_longer(
+  ) |> mutate(
+  across(matches("PCS|MCS"), ~as.numeric(.x))
+) |> pivot_longer(
   cols = !TreatmentID,
   names_to = c(".value","TimePoint"),
   names_sep = "_",
@@ -1581,7 +1585,7 @@ bind_rows(main_table, footer_total, footer_active) |>
 ```
 
 ```{r}
-#| label: tbl-promcapture
+#| label: tbl-promcapture1
 #| tbl-cap: "Summary of PROMs Capture by Timepoint for GMRS | MRH cases"
 # N returned per TimePoint x Usage (any one PROM returned)
 returned_summary <- SnapshotGMRSPROM |>
@@ -1623,7 +1627,7 @@ returned_table |>
 ```
 
 ```{r}
-#| label: tbl-promcapture
+#| label: tbl-promcapture2
 #| tbl-cap: "Summary of PROMs Capture by Timepoint for GMRS | MRH cases"
 
 
