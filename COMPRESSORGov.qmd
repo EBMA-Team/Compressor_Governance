@@ -161,45 +161,62 @@ gs4_auth(token = drive_token())
 
 
 
-ComplicTable <- googlesheets4::read_sheet(
+# ComplicTable <- googlesheets4::read_sheet(
+#   ss = SheetIDs$DbSS,
+#   sheet = "Complications", 
+#   col_names = TRUE, 
+#   col_types = "cccTciicicccccccccccccccccDccD"
+#   )
+# 
+# 
+# #To match to acctData
+# PatientTable <- googlesheets4::range_read(
+#   ss = SheetIDs$DbSS,
+#   sheet = "Patient", 
+#   range = "A10:Q",
+#   col_names = FALSE, 
+#   col_types = "DccccDcccDcicccDi"
+#   )
+# 
+# 
+# Patient_Col <- c(
+#   "PatientCreationDate",
+#   "PatientID",
+#   "LastName",	
+#   "FirstName",	
+#   "AlternateID",	
+#   "DateOfBirth",	
+#   "Sex",	
+#   "RegistryStatus",	
+#   "RegistryStatusNotes",	
+#   "DateRegistryStatus",	
+#   "NotificationMethod",	
+#   "NoTreatmentRecords",	
+#   "Email",	
+#   "Phone",
+#   "PatientRegistrationStatus",
+#   "DatePatientRegistration",
+#   "TrueNoTreatmentRecords"
+# )
+# 
+# colnames(PatientTable) <- Patient_Col
+
+
+TreatTable <- googlesheets4::range_read(
   ss = SheetIDs$DbSS,
-  sheet = "Complications", 
-  col_names = TRUE, 
-  col_types = "cccTciicicccccccccccccccccDccD"
+  sheet = "Treatment", 
+  range = "A7:Z",
+  col_names = FALSE
   )
 
-
-#To match to acctData
-PatientTable <- googlesheets4::range_read(
+TreatTableCol <- googlesheets4::range_read(
   ss = SheetIDs$DbSS,
-  sheet = "Patient", 
-  range = "A10:Q",
-  col_names = FALSE, 
-  col_types = "DccccDcccDcicccDi"
+  sheet = "Treatment", 
+  range = "A1:Z1",
+  col_names = FALSE
   )
 
-
-Patient_Col <- c(
-  "PatientCreationDate",
-  "PatientID",
-  "LastName",	
-  "FirstName",	
-  "AlternateID",	
-  "DateOfBirth",	
-  "Sex",	
-  "RegistryStatus",	
-  "RegistryStatusNotes",	
-  "DateRegistryStatus",	
-  "NotificationMethod",	
-  "NoTreatmentRecords",	
-  "Email",	
-  "Phone",
-  "PatientRegistrationStatus",
-  "DatePatientRegistration",
-  "TrueNoTreatmentRecords"
-)
-
-colnames(PatientTable) <- Patient_Col
+ colnames(TreatTable) <- TreatTableCol
 
 
 ```
@@ -218,6 +235,9 @@ specific_snapshot <- get_specific_snapshot("20260310")
 ```
 
 ```{r}
+#| execute: false
+
+# The snapshot coming out of the framework is over filtering the records and I dont know yet where to make the fix. I think it could be a structural issue. I think I will just bypass the snapshot for now and read in the sheets raw.
 
 temp_file1 <- tempfile(fileext = ".xlsx")
 drive_download(
@@ -291,6 +311,77 @@ COMPRESSOR (Complex Reconstructive Surgery Outcomes Registry) is a clinical qual
 2.  27-Mar-2025 to present
 
 It should be noted that collection of PROMs has been heavily restricted for this registry due to concerns over appropriateness to follow up patients at high-risk of mortality or other contraindications for completing scores. These restrictions have only recently been lifted, and only then for cases receiving hardware components of interest (Ossis, Stryker GMRS-MRH).
+
+
+#Snapshot validation
+
+```{r}
+# Identify dropped records
+dropped_records <- TreatTable |> filter(
+  lubridate::ymd(DateTreatmentRecordCreation) <= ymd(CurrentDate)
+) |> mutate(
+  TreatmentID = as.character(
+    TreatmentID
+    )
+  ) |> anti_join(
+      Snapshot, by = "TreatmentID"
+      )
+
+# Row count summary
+epoxy(
+  "TreatTable (live):   {nrow(TreatTable)} records",
+  "Snapshot (pipeline): {nrow(Snapshot)} records",
+  "Dropped records:     {nrow(dropped_records)} records",
+  .sep = "\n"
+)
+```
+
+```{r}
+
+STROBEInc <- STROBEFlow |> filter(
+  !is.na(followup)
+)
+# Identify dropped records
+DroppedKneeIntra <- TreatTable |> filter(
+  TreatmentID %in% STROBEInc$followup
+) |> mutate(
+  TreatmentID = as.character(
+    TreatmentID
+    )
+  ) |> anti_join(
+      KneeIntraop, join_by("TreatmentID" == "Treatment ID")
+      )
+
+# Row count summary
+epoxy(
+  "TreatTable (live):   {nrow(TreatTable)} records",
+  "KneeIntraop : {nrow(KneeIntraop)} records",
+  "Dropped records:     {nrow(DroppedKneeIntra)} records",
+  .sep = "\n"
+)
+```
+```{r}
+
+
+# Identify dropped records
+SnapIntrDrop <- KneeIntraop |> filter(
+  !is.na(Anaesthetic)
+)  |> anti_join(
+      Snapshot |> filter(
+  Surgeon == "SM",
+  SurgicalTreatment2 == "Surgical",
+  RegistryCohortName == "KneeArthritis",
+), join_by("Treatment ID" == "TreatmentID")
+      )
+
+# Row count summary
+epoxy(
+  "KneeIntraop : {nrow(KneeIntraop)} records",
+  "Snapshot (pipeline):   {nrow(Snapshot)} records",
+  "Dropped records:     {nrow(SnapIntrDrop)} records",
+  .sep = "\n"
+)
+```
 
 # Recruitment Flow by Region
 
