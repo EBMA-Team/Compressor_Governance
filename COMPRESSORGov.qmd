@@ -235,7 +235,7 @@ specific_snapshot <- get_specific_snapshot("20260310")
 ```
 
 ```{r}
-#| execute: false
+#| execute: true
 
 # The snapshot coming out of the framework is over filtering the records and I dont know yet where to make the fix. I think it could be a structural issue. I think I will just bypass the snapshot for now and read in the sheets raw.
 
@@ -336,52 +336,7 @@ epoxy(
 )
 ```
 
-```{r}
 
-STROBEInc <- STROBEFlow |> filter(
-  !is.na(followup)
-)
-# Identify dropped records
-DroppedKneeIntra <- TreatTable |> filter(
-  TreatmentID %in% STROBEInc$followup
-) |> mutate(
-  TreatmentID = as.character(
-    TreatmentID
-    )
-  ) |> anti_join(
-      KneeIntraop, join_by("TreatmentID" == "Treatment ID")
-      )
-
-# Row count summary
-epoxy(
-  "TreatTable (live):   {nrow(TreatTable)} records",
-  "KneeIntraop : {nrow(KneeIntraop)} records",
-  "Dropped records:     {nrow(DroppedKneeIntra)} records",
-  .sep = "\n"
-)
-```
-```{r}
-
-
-# Identify dropped records
-SnapIntrDrop <- KneeIntraop |> filter(
-  !is.na(Anaesthetic)
-)  |> anti_join(
-      Snapshot |> filter(
-  Surgeon == "SM",
-  SurgicalTreatment2 == "Surgical",
-  RegistryCohortName == "KneeArthritis",
-), join_by("Treatment ID" == "TreatmentID")
-      )
-
-# Row count summary
-epoxy(
-  "KneeIntraop : {nrow(KneeIntraop)} records",
-  "Snapshot (pipeline):   {nrow(Snapshot)} records",
-  "Dropped records:     {nrow(SnapIntrDrop)} records",
-  .sep = "\n"
-)
-```
 
 # Recruitment Flow by Region
 
@@ -530,6 +485,7 @@ A procedure failure is defined by a terminology in the clinical letter and/or a 
 ::: {#progressionend .callout-note}
 Treatment progression end is a term to denote that a treatment record is no longer being actively tracked by the registry team with respect to clinical outcomes or patient-reported outcomes. In this registry, the majority of cases are deceased, or are not contactable by the registry. A smaller number are stage 1 revisions that have transition to stage 2.
 :::
+
 
 Cumulative recruitment over time was plotted from Registry inception to the present.
 
