@@ -306,9 +306,11 @@ STROBEInput <- openxlsx2::wb_to_df(
 
 COMPRESSOR (Complex Reconstructive Surgery Outcomes Registry) is a clinical quality registry supporting the practices of one surgeon in Sydney, New South Wales. It has been in operation over two distinct periods, with upper and lower limb tumour cohorts, as well as tumour of the pelvis and reintervention arthroplasty cohorts of the hip and knee. The periods that the registry has been actively collecting PROMs;
 
-1.  25-Feb-2022 to 29-Sep-2022
+1. 25-Feb-2022 to 29-Sep-2022
 
-2.  27-Mar-2025 to present
+2. 27-Mar-2025 to 2-Oct-2025
+
+3. 15-Feb-2026 to Present
 
 It should be noted that collection of PROMs has been heavily restricted for this registry due to concerns over appropriateness to follow up patients at high-risk of mortality or other contraindications for completing scores. These restrictions have only recently been lifted, and only then for cases receiving hardware components of interest (Ossis, Stryker GMRS-MRH).
 
