@@ -651,7 +651,7 @@ FigureVR12Miss <- gg_miss_fct(PROMVR12 |> dplyr::filter(
       ) + scale_fill_viridis_c(
     option = "plasma",  # or "inferno", "magma", "cividis"
     name = "% Missing",
-    limits = c(50, 100)  # Set limits from 0% to 100%
+    limits = c(20, 100)  # Set limits from 0% to 100%
   ) +
   geom_text(data = SampleSizeVR12, 
             aes(x = TimePoint, y = 0.7, label = paste0("n=", n)),
@@ -1556,6 +1556,9 @@ SnapshotGMRSPROM <- SnapshotGMRS2 |> dplyr::select(
     na.rm = FALSE,
     remove = FALSE
     ) |> left_join(
+      PROMVR12 |> dplyr::select(TimePointID,VR12PCS),
+      by = "TimePointID"
+    ) |> left_join(
     PROMMSTS |> dplyr::select(TimePointID,MSTSLowerTotal),
     by = "TimePointID"
   ) |> left_join(
@@ -1564,7 +1567,7 @@ SnapshotGMRSPROM <- SnapshotGMRS2 |> dplyr::select(
   ) |> left_join(
     PROMKOOS12 |> dplyr::select(TimePointID,KOOS12SummaryTotal),
     by = "TimePointID"
-  ) |> naniar::add_shadow(MSTSLowerTotal,HOOS12SummaryTotal,KOOS12SummaryTotal)
+  ) |> naniar::add_shadow(MSTSLowerTotal,HOOS12SummaryTotal,KOOS12SummaryTotal,VR12PCS)
 
 ```
 
@@ -1639,7 +1642,8 @@ bind_rows(main_table, footer_total, footer_active) |>
 # N returned per TimePoint x Usage (any one PROM returned)
 returned_summary <- SnapshotGMRSPROM |>
   mutate(
-    returned = MSTSLowerTotal_NA == "!NA" |
+    returned = VR12PCS_NA == "!NA" |
+               MSTSLowerTotal_NA == "!NA" |
                HOOS12SummaryTotal_NA == "!NA" |
                KOOS12SummaryTotal_NA == "!NA"
   ) |>
