@@ -2199,6 +2199,8 @@ Patient and complications table has already been read in
 
 ```{r}
 #| label: read-tables2
+#| execute: false
+#| 
 
 
 # Authenticate for sheets using the same token
@@ -2225,7 +2227,7 @@ colnames(TreatTable) <- colnames(Treat_Col)
 ```
 
 ```{r}
-
+#| execute: false
 # Extract DarrenLog to retrieve lastcontact date
 # 
 DarrenTable <- googlesheets4::range_read(
@@ -2242,7 +2244,7 @@ DarrenTable <- googlesheets4::range_read(
 Deidentify patient data
 
 ```{r}
-
+#| execute: false
 library(tidyverse)
 library(digest)
 library(lubridate)
@@ -2337,6 +2339,8 @@ scramble_identifiers <- function(df, id_columns, salt = "my_salt_123") {
 ```
 
 ```{r}
+#| execute: false
+
 
 PatientDeid <- scramble_identifiers(
   df = PatientTable,
@@ -2354,6 +2358,8 @@ TreatDeid <- scramble_identifiers(
 Retrieve lastcontact
 
 ```{r}
+#| execute: false
+
 
 DarrenTable2 <- DarrenTable |>
   dplyr::mutate(
@@ -2371,6 +2377,8 @@ DarrenTable2 <- DarrenTable |>
 Merge tables
 
 ```{r}
+#| execute: false
+
 
 PatientTable2 <- PatientTable |> dplyr::select(
   -(c(
@@ -2406,6 +2414,9 @@ PatientTable2 <- PatientTable |> dplyr::select(
 ```
 
 ```{r}
+#| execute: false
+
+
 # Example: Find duplicates based on columns 'col1' and 'col2'
 duplicates <- PatientTable2 |>
   group_by(PatientID) |>
@@ -2414,7 +2425,7 @@ duplicates <- PatientTable2 |>
 ```
 
 ```{r}
-
+#| execute: false
 
 
 PatientTableNew <- bind_cols(
@@ -2453,7 +2464,7 @@ PatientTableNew <- bind_cols(
 ```
 
 ```{r}
-
+#| execute: false
 
 TreatTable2 <- TreatTable |> dplyr::select(
   -(c(
@@ -2571,6 +2582,9 @@ TreatTableNew <- bind_cols(
 Do some checks
 
 ```{r}
+#| execute: false
+
+
 # Identify rows in df_a that are not in df_b (based on the 'id' column)
 rows_not_in_b <- anti_join(TreatTableNew, TreatTable2, by = "TreatmentID")
 ```
@@ -2578,6 +2592,8 @@ rows_not_in_b <- anti_join(TreatTableNew, TreatTable2, by = "TreatmentID")
 Write to CSV
 
 ```{r}
+#| execute: false
+
 
 readr::write_csv(
   PatientTableNew |> dplyr::select(
