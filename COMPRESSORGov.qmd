@@ -225,6 +225,8 @@ A static registry snapshot was retrieved and formatted based on the fixed date o
 
 ```{r}
 
+CurrentDate <- as.character("20260310")
+
 # Authenticate for sheets using the same token
 gs4_auth(token = drive_token())
 
@@ -388,7 +390,7 @@ STROBEFlow2 <- STROBEInput |>
 
 ```{r}
 
-CurrentDate <- as.character("20260310")
+
 
 STROBEFlow3 <- STROBEFlow2 |> dplyr::mutate(
     exclusion1 = case_when(
