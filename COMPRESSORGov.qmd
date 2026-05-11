@@ -7,7 +7,7 @@ type: "website"
 number-sections: true
 number-depth: 3
 date: "2026-Mar-10"
-date-modified: "2026-Mar-10"
+date-modified: "2026-May-07"
 
 bibliography: CompressorGov references.bib
 
@@ -225,13 +225,13 @@ A static registry snapshot was retrieved and formatted based on the fixed date o
 
 ```{r}
 
-CurrentDate <- as.character("20260310")
+CurrentDate <- as.character("20260507")
 
 # Authenticate for sheets using the same token
 gs4_auth(token = drive_token())
 
 # To get a snapshot from a specific folder (e.g., "20230415")
-specific_snapshot <- get_specific_snapshot("20260310")
+specific_snapshot <- get_specific_snapshot("20260507")
 
 
 ```
