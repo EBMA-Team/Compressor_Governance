@@ -504,3 +504,24 @@ readr::write_csv(
 )
 
 ```
+
+
+--------------------------------------------
+  
+  
+  Snapshot <- dplyr::mutate(
+    Snapshot,
+    across(contains("Score"), ~as.numeric(.))
+  )
+
+FigureVR12 <- Snapshot |> dplyr::filter(SurgicalTreatment2 == "Surgical") |>
+  ggplot(aes(y = RegistryCohortName, x = VR12PCS_12months)) +
+  stat_halfeye(
+    point_interval = median_qi,  # median and interquartile range
+    .width = c(0.50, 0.95),   # quartile ranges
+    interval_size_range = c(0.5, 1.5),  # Thin and bold line weights,
+    fill = "steelblue"
+  )
+
+
+knitr::knit_print(FigureVR12)

@@ -571,9 +571,9 @@ FigureMissBase <- gg_miss_fct(Snapshot |> dplyr::filter(
         ), 
       RegistryCohortName
       ) + scale_fill_viridis_c(
-    option = "plasma",  # or "inferno", "magma", "cividis"
+    option = "magma",  # or "inferno", "magma", "cividis"
     name = "% Missing",
-    limits = c(50, 100)  # Set limits from 0% to 100%
+    limits = c(0, 100)  # Set limits from 0% to 100%
   ) +
   geom_text(data = samplesizeBase, 
             aes(x = RegistryCohortName, y = 0.7, label = paste0("n=", n)),
@@ -638,22 +638,24 @@ PROMVR12 <- Snapshot |> dplyr::select(
 
 SampleSizeVR12 <- PROMVR12 |> 
   dplyr::filter(
-    SurgicalTreatment2 == "Surgical"
+    SurgicalTreatment2 == "Surgical",
+    RegistryCohortName != "General"
   ) |> 
   dplyr::count(TimePoint, name = "n")
 
 FigureVR12Miss <- gg_miss_fct(PROMVR12 |> dplyr::filter(
       !is.na(EligibleAt),
-      SurgicalTreatment2 == "Surgical"
+      SurgicalTreatment2 == "Surgical",
+      RegistryCohortName != "General"
       ) |> dplyr::select(
         VR12PCS,
         TimePoint
         ), 
       TimePoint
       ) + scale_fill_viridis_c(
-    option = "plasma",  # or "inferno", "magma", "cividis"
+    option = "magma",  # or "inferno", "magma", "cividis"
     name = "% Missing",
-    limits = c(20, 100)  # Set limits from 0% to 100%
+    limits = c(0, 100)  # Set limits from 0% to 100%
   ) +
   geom_text(data = SampleSizeVR12, 
             aes(x = TimePoint, y = 0.7, label = paste0("n=", n)),
@@ -726,9 +728,9 @@ SampleSizeMSTS <- PROMMSTS |>
   dplyr::count(TimePoint, name = "n")
 
 FigureMSTSMiss <- gg_miss_fct(PROMMSTS |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dplyr::select(MSTSLowerTotal,TimePoint), TimePoint) + scale_fill_viridis_c(
-    option = "plasma",  # or "inferno", "magma", "cividis"
+    option = "magma",  # or "inferno", "magma", "cividis"
     name = "% Missing",
-    limits = c(50, 100)  # Set limits from 0% to 100%
+    limits = c(0, 100)  # Set limits from 0% to 100%
   ) +
   geom_text(data = SampleSizeMSTS, 
             aes(x = TimePoint, y = 0.7, label = paste0("n=", n)),
@@ -796,9 +798,9 @@ SampleSizeHOOS12 <- PROMHOOS12 |>
   dplyr::count(TimePoint, name = "n")
 
 FigureHOOSMiss <- gg_miss_fct(PROMHOOS12 |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dplyr::select(contains("HOOS12SummaryTotal"), TimePoint), TimePoint) + scale_fill_viridis_c(
-    option = "plasma",  # or "inferno", "magma", "cividis"
+    option = "magma",  # or "inferno", "magma", "cividis"
     name = "% Missing",
-    limits = c(50, 100)  # Set limits from 0% to 100%
+    limits = c(0, 100)  # Set limits from 0% to 100%
   ) +
   geom_text(data = SampleSizeHOOS12, 
             aes(x = TimePoint, y = 0.7, label = paste0("n=", n)),
@@ -819,25 +821,21 @@ The HOOS12 (@fig-hoos12-miss) is presented only to the ReinterventionTHA cohort 
 The VR12 is a *general* health questionnaire that is presented to *all* patients enrolled in the registry. It comprises two components to the score, *Physical* and *Mental*.
 
 ```{r}
-#| label: fig-vr12-cohort
-#| fig-cap: "Summary (median with interquartile ranges) of VR12 Physical Component Score at 12months by cohort"
+#| label: tbl-vr12-cohort
+#| tbl-cap: "Summary (median with interquartile ranges) of VR12 Physical Component Score at 12months by cohort"
 
-Snapshot <- dplyr::mutate(
-  Snapshot,
-  across(contains("Score"), ~as.numeric(.))
-)
-
-FigureVR12 <- Snapshot |> dplyr::filter(SurgicalTreatment2 == "Surgical") |>
-  ggplot(aes(y = RegistryCohortName, x = VR12PCS_12months)) +
-  stat_halfeye(
-    point_interval = median_qi,  # median and interquartile range
-    .width = c(0.50, 0.95),   # quartile ranges
-    interval_size_range = c(0.5, 1.5),  # Thin and bold line weights,
-    fill = "steelblue"
+TblVR12 <- Snapshot |> dplyr::filter(
+  SurgicalTreatment2 == "Surgical",
+  RegistryCohortName != "General",
+  EligibleAtx12months == "Yes"
+  ) |> dplyr::select(
+    VR12PCS_12months,
+    RegistryCohortName
+  ) |> gtsummary::tbl_summary(
+    by = "RegistryCohortName"
   )
 
-
-knitr::knit_print(FigureVR12)
+knitr::knit_print(TblVR12)
 
 ```
 
@@ -850,9 +848,9 @@ Between-cohort variability is observed for the Physical Component Score of the V
 #preop_position <- which(levels(PROMQDASH$TimePoint) == "Preop")
 
 FigureMSTS <- PROMMSTS |> dplyr::filter(
-  !(is.na(SurgicalTreatment2)),
+  SurgicalTreatment2 == "Surgical",
   !is.na(MSTSLowerTotal)
-) |> ggplot(aes(y = MSTSLowerTotal, x = TimePoint, fill = SurgicalTreatment2, color = SurgicalTreatment2)) +
+) |> ggplot(aes(y = MSTSLowerTotal, x = TimePoint)) +
   stat_halfeye(
     alpha = 0.5,  # Transparency for overlap visibility
     position = "identity",  # Overlay the distributions
@@ -862,17 +860,6 @@ FigureMSTS <- PROMMSTS |> dplyr::filter(
     #.width = c(0.50, 0.95),   # quartile ranges
     interval_size_range = c(0.5, 1.5)  # Thin and bold line weights
   ) +
-  # Add appropriate scale colors "Surgery recommended" = "darkred"
-  scale_fill_manual(values = c(
-    "Surgical" = "steelblue", 
-    "Non-Surgical" = "darkred"
-    )
-    ) +
-  scale_color_manual(values = c(
-    "Surgical" = "steelblue4", 
-    "Non-Surgical" = "darkred"
-    )
-    ) +
   labs(
     y = "MSTSLowerTotal",
     x = "Time Point",
