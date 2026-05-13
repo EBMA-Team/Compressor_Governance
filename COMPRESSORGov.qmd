@@ -309,14 +309,13 @@ STROBEInput <- openxlsx2::wb_to_df(
 
 COMPRESSOR (Complex Reconstructive Surgery Outcomes Registry) is a clinical quality registry supporting the practices of one surgeon in Sydney, New South Wales. It has been in operation over two distinct periods, with upper and lower limb tumour cohorts, as well as tumour of the pelvis and reintervention arthroplasty cohorts of the hip and knee. The periods that the registry has been actively collecting PROMs;
 
-1. 25-Feb-2022 to 29-Sep-2022
+1.  25-Feb-2022 to 29-Sep-2022
 
-2. 27-Mar-2025 to 2-Oct-2025
+2.  27-Mar-2025 to 2-Oct-2025
 
-3. 15-Feb-2026 to Present
+3.  15-Feb-2026 to Present
 
 It should be noted that collection of PROMs has been heavily restricted for this registry due to concerns over appropriateness to follow up patients at high-risk of mortality or other contraindications for completing scores. These restrictions have only recently been lifted, and only then for cases receiving hardware components of interest (Ossis, Stryker GMRS-MRH).
-
 
 #Snapshot validation
 
@@ -551,7 +550,6 @@ PROMBPI <- Snapshot |> dplyr::select(
 
 ```
 
-
 ```{r}
 #| label: proms-table-helper
 
@@ -602,7 +600,6 @@ build_prom_table <- function(data, score_var, score_label, timepoints) {
 }
 ```
 
-
 ## Base cohort (complic-cohort-base)
 
 ```{r}
@@ -624,7 +621,6 @@ ImplantCohort <- Snapshot |>
     AnalysisLabel
   )
 ```
-
 
 ```{r}
 #| label: complic-table2
@@ -757,8 +753,6 @@ ComplicTable2a <- ComplicTable2 |>
   )
 ```
 
-
-
 ```{r}
 #| label: complic-table3
 
@@ -853,7 +847,6 @@ ComplicEvents   <- ComplicMaster |> dplyr::filter(Category != "Censored")
 ComplicEndpoints <- ComplicMaster |> dplyr::filter(Category == "Censored")
 ```
 
-
 ```{r}
 #| label: complic-summary-prep
 
@@ -900,7 +893,6 @@ ComplicWide <- ImplantCohort |>
     across(any_of(category_display), ~replace_na(.x, "No"))
   )
 ```
-
 
 # Recruitment Flow by Region
 
@@ -1049,7 +1041,6 @@ A procedure failure is defined by a terminology in the clinical letter and/or a 
 ::: {#progressionend .callout-note}
 Treatment progression end is a term to denote that a treatment record is no longer being actively tracked by the registry team with respect to clinical outcomes or patient-reported outcomes. In this registry, the majority of cases are deceased, or are not contactable by the registry. A smaller number are stage 1 revisions that have transition to stage 2.
 :::
-
 
 Cumulative recruitment over time was plotted from Registry inception to the present.
 
@@ -1300,9 +1291,6 @@ knitr::knit_print(TblVR12)
 
 Between-cohort variability is observed for the Physical Component Score of the VR12 at 12 months (@tbl-vr12-cohort). Most notable is the wide spread of scores within all cohorts. The Tumour Pelvis cohort shows a bimodal pattern, with some patients reporting good physical function and others quite low — likely reflecting the heterogeneity of pelvic tumour presentations and surgical approaches.
 
-
-
-
 ::: {#survivorbias .callout-note collapse="true" title="Technical note: survivor bias"}
 Survivor bias occurs when the patients remaining available for follow-up at a given timepoint are systematically different from those who have been lost — in this context, because patients with poorer function are more likely to have died or become unreachable before later timepoints. This means long-term PROMs may overestimate the functional status of the surviving cohort as a whole.
 :::
@@ -1317,6 +1305,15 @@ This cohort includes all cases presenting with abnormal growths directly interac
 - Physical health scores are highly variable within this cohort, consistent with the complexity and heterogeneity of pelvic tumour presentations
 - Survival estimates should be interpreted cautiously given small numbers and competing risks from mortality (see note in Observations)
 :::
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
 
 ### Who were these patients?
 
@@ -1460,10 +1457,7 @@ tbl_summary(
   bold_labels()
 ```
 
-
 ### How did patients report their function?
-
-
 
 ```{r}
 #| label: tbl-proms-tp
@@ -1498,9 +1492,7 @@ bind_rows(
   )
 ```
 
-
 MSTS scores for this cohort remain sparse (@fig-msts-tp), making meaningful interpretation difficult at most timepoints. The available data are consistent with moderate functional limitation across the follow-up period, reflecting the surgical complexity of pelvic reconstruction.
-
 
 ## Tumour Lower Limb
 
@@ -1543,7 +1535,6 @@ TableTLLdemo <- gtsummary::tbl_summary(
 
 knitr::knit_print(TableTLLdemo)
 ```
-
 
 ### How did the procedure hold up?
 
@@ -1656,8 +1647,6 @@ tbl_summary(
 
 ### How did patients report their function?
 
-
-
 ```{r}
 #| label: tbl-proms-tll
 #| tbl-cap: "Patient-reported outcomes by timepoint: Tumour Lower Limb"
@@ -1693,7 +1682,6 @@ bind_rows(
 
 Direct comparison of pain severity between primary and revision cases is limited by small numbers (@fig-bpi-tll). For primary cases, reported pain levels remain relatively low across all timepoints up to 10 years, which is encouraging given the extent of surgery involved.
 
-
 ## GMRS-MRH (Stryker Components)
 
 This subsection covers all surgical cases across cohorts in which Stryker GMRS or MRH components were used. Cases where both components were implanted are captured in the sponsor-specific reports rather than here. The General cohort within this group includes complex primary arthroplasties for knee deformity with concurrent osteoarthritis.
@@ -1705,7 +1693,6 @@ This subsection covers all surgical cases across cohorts in which Stryker GMRS o
 - PROMs capture rates and eligible numbers by surgical usage type are summarised in the registry operations section below
 :::
 
-
 ### Who were these patients?
 
 ```{r}
@@ -1716,7 +1703,8 @@ TableGMRSdemo <- gtsummary::tbl_summary(
   Snapshot |> dplyr::filter(
     stringr::str_detect(str_to_lower(Hardware), "gmrs|mrh"),
     RegistryCohortName != "TumourUpperLimb",
-    Surgeon == "RB"
+    Planned != "Yes"
+    #Surgeon == "RB"
   ) |> dplyr::select(
     RegistryCohortName,
     TreatmentType,
@@ -1802,7 +1790,6 @@ knitr::knit_print(TableSurvGMRS)
 ```
 
 Approximately 70% of primary cases remain free of procedure failure at 10 years (@fig-survgmrs, @tbl-survgmrs). Revision cases show substantially reduced durability, with 70% survival at approximately 5 years. As with other cohorts, confidence intervals widen considerably at longer timepoints.
-
 
 ### What complications and reoperations were recorded?
 
@@ -1920,7 +1907,6 @@ Total femoral replacement: As available
 Femoral diaphyseal defect reconstruction: As available
 :::
 
-
 ```{r}
 
 SnapshotGMRSPROM <- SnapshotGMRS |> dplyr::select(
@@ -1988,9 +1974,6 @@ SnapshotGMRSPROM <- SnapshotGMRS |> dplyr::select(
 
 ```
 
-
-
-
 ```{r}
 
 #| label: tbl-promeligible
@@ -2056,7 +2039,6 @@ bind_rows(main_table, footer_total, footer_active) |>
 
 ```
 
-
 ```{r}
 #| label: tbl-promcapture1
 #| tbl-cap: "Summary of PROMs Capture by Timepoint for GMRS | MRH cases"
@@ -2101,11 +2083,61 @@ returned_table |>
   gt::opt_table_font(font = gt::google_font("Inter"))
 ```
 
+### Generate Initial List for Review
+
+
+```{r}
+GMRSExport <- Snapshot |> dplyr::filter(
+  stringr::str_detect(str_to_lower(Hardware), "gmrs|mrh"),
+    RegistryCohortName != "TumourUpperLimb",
+    Planned != "Yes"
+) |> dplyr::select(
+  TreatmentID,
+  CombID,
+  AgeAtInitialExam,
+  Surgeon,
+  Provider,
+  DateTreatment,
+  AffectedSide,
+  RegistryStatus,
+  RegistryStatusNotes,
+  DateRegistryStatus,
+  TreatmentType2,
+  Retrospective,
+  TreatmentStatus,
+  TreatmentStatusNotes,
+  DateStatusChange,
+  DiagnosisRawFinal,
+  DiagnosisRawPrelim,
+  RegistryCohortName,
+  AnalysisLabel,
+  SurgicalTreatment2,
+  Hardware,
+  starts_with("Eligible"),
+) 
+
+ComplicGMRS <- ComplicTable |> filter(
+  TreatmentID %in% GMRSExport$TreatmentID
+)
+```
+
+
+```{r}
+#| label: write-export
+#| execute: false
+
+
+
+googlesheets4::write_sheet(GMRSExport, ss = "https://docs.google.com/spreadsheets/d/1SwFDscBu0jWhNgY6_LcFVfceDa70FXdbr3veRuDJRDY/edit", sheet = "GMRSMaster")
+
+googlesheets4::write_sheet(ComplicGMRS, ss = "https://docs.google.com/spreadsheets/d/1SwFDscBu0jWhNgY6_LcFVfceDa70FXdbr3veRuDJRDY/edit", sheet = "GMRSComplic")
+```
+
 
 
 ## 3D-Printed Pelvic Implant (Ossis-ZimmerBiomet)
 
-This subsection covers all surgical cases across cohorts in which Ossis components were used. 
+This subsection covers all surgical cases across cohorts in which Ossis components were used.
 
 ::: {.callout-tip title="Key findings"}
 - 70% of primary cases remain free of procedure failure at approximately 10 years; for revision cases this threshold is reached at approximately 5 years
@@ -2113,7 +2145,6 @@ This subsection covers all surgical cases across cohorts in which Ossis componen
 - Musculoskeletal function (MSTS) differs between primary and revision cases in the Tumour Lower Limb group, though the cross-sectional nature of the data limits longitudinal interpretation
 - PROMs capture rates and eligible numbers by surgical usage type are summarised in the registry operations section below
 :::
-
 
 ### Who were these patients?
 
@@ -2211,7 +2242,6 @@ knitr::knit_print(TableSurv3DPI)
 
 Approximately 80% of primary cases remain free of procedure failure at 10 years (@fig-surv3dpi, @tbl-surv3dpi). Revision cases show substantially reduced durability, with 70% survival at approximately 5 years. As with other cohorts, confidence intervals widen considerably at longer timepoints.
 
-
 ### What complications and reoperations were recorded?
 
 ```{r}
@@ -2305,4 +2335,3 @@ bind_rows(
 ```
 
 Physical health scores remain difficult to interpret at this stage due to small, cross-sectional samples (@fig-vr122). The Reintervention TKA group shows relative stability across timepoints, while the Tumour Lower Limb group shows a more variable pattern from 6 months onwards — consistent with the more complex recovery trajectory expected after limb-salvage surgery.
-
