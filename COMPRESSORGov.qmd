@@ -2335,4 +2335,4 @@ bind_rows(
 
 ```
 
-Physical health scores remain difficult to interpret at this stage due to small, cross-sectional samples (@fig-vr122). The Reintervention TKA group shows relative stability across timepoints, while the Tumour Lower Limb group shows a more variable pattern from 6 months onwards — consistent with the more complex recovery trajectory expected after limb-salvage surgery.
+Physical health scores remain difficult to interpret at this stage due to small, cross-sectional samples (@tbl-proms-3dpi). The Reintervention TKA group shows relative stability across timepoints, while the Tumour Lower Limb group shows a more variable pattern from 6 months onwards — consistent with the more complex recovery trajectory expected after limb-salvage surgery.
