@@ -667,14 +667,15 @@ ComplicTable2 <- ComplicTable |>
       "Tumour", "No"
     ),
     Loosening = if_else(
-      stringr::str_detect(Term3, "loose component"),
-      "Loosening", "No"
-    ),
-    Hardware = if_else(
-      stringr::str_detect(Term3, "irritat|explant|broke|device|loose|cable|screw|\\basis\\b") &
-        Loosening == "No",
-      "Hardware", "No"
-    ),
+  stringr::str_detect(Term3, "loosen|fixation failure") &
+    stringr::str_detect(Term3, "stem|component|prosthes|implant|femoral|tibial|patella|pubic|pelvic|acetabul"),
+  "Loosening", "No"
+),
+   Hardware = if_else(
+  stringr::str_detect(Term3, "irritat|explant|broke|device|cable|screw|\\basis\\b|wire|plate|grip") &
+    Loosening == "No",
+  "Hardware", "No"
+),
     Instability = if_else(
       stringr::str_detect(Term3, "instab|sublux|disloc"),
       "Dislocation", "No"
