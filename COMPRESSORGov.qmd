@@ -1492,7 +1492,7 @@ bind_rows(
   )
 ```
 
-MSTS scores for this cohort remain sparse (@fig-msts-tp), making meaningful interpretation difficult at most timepoints. The available data are consistent with moderate functional limitation across the follow-up period, reflecting the surgical complexity of pelvic reconstruction.
+MSTS scores for this cohort remain sparse (@tbl-proms-tp), making meaningful interpretation difficult at most timepoints. The available data are consistent with moderate functional limitation across the follow-up period, reflecting the surgical complexity of pelvic reconstruction.
 
 ## Tumour Lower Limb
 
@@ -1680,7 +1680,7 @@ bind_rows(
   )
 ```
 
-Direct comparison of pain severity between primary and revision cases is limited by small numbers (@fig-bpi-tll). For primary cases, reported pain levels remain relatively low across all timepoints up to 10 years, which is encouraging given the extent of surgery involved.
+Direct comparison of pain severity between primary and revision cases is limited by small numbers (@tbl-proms-tll). For primary cases, reported pain levels remain relatively low across all timepoints up to 10 years, which is encouraging given the extent of surgery involved.
 
 ## GMRS-MRH (Stryker Components)
 
@@ -1885,7 +1885,7 @@ bind_rows(
 
 Physical health scores remain difficult to interpret at this stage due to small, cross-sectional samples. The Reintervention TKA group shows relative stability across timepoints, while the Tumour Lower Limb group shows a more variable pattern from 6 months onwards — consistent with the more complex recovery trajectory expected after limb-salvage surgery.
 
-Musculoskeletal function scores for the GMRS-MRH subgroup (@fig-msts2) are limited by small cross-sectional samples. Within the Tumour Lower Limb cohort, differences between primary and revision cases are apparent even with the available data, with revision cases showing lower scores at most timepoints.
+Musculoskeletal function scores for the GMRS-MRH subgroup (@tbl-proms-gmrs) are limited by small cross-sectional samples. Within the Tumour Lower Limb cohort, differences between primary and revision cases are apparent even with the available data, with revision cases showing lower scores at most timepoints.
 
 ### PROMs Capture Progress Against Targets
 
