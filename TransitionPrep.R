@@ -1504,3 +1504,56 @@ Target numbers retrieved from [Synopsis](https://docs.google.com/document/d/1u2V
   -   Implement strategies to improve patient engagement at later followup timepoints
   
   -   Identify additional opportunities for local/state data linkage activities to supplement outcomes tracking (complications, mortality, procedure survival)
+  
+  
+  ```{r}
+  #| label: fig-msts-tp
+  #| fig-cap: "MSTS scores over time: Tumour Pelvis (surgical cases)"
+  
+  
+  # Calculate counts for each timepoint
+  count_data <- PROMMSTS |> 
+    dplyr::filter(
+      SurgicalTreatment2 == "Surgical",
+      RegistryCohortName == "TumourPelvis",
+      !is.na(MSTSLowerTotal)
+    ) |> 
+    dplyr::count(TimePoint, name = "n_responses")
+  
+  #preop_position <- which(levels(PROMGHI$TimePoint) == "Preop")
+  
+  FigureTPMSTS <- PROMMSTS |> dplyr::filter(
+    SurgicalTreatment2 == "Surgical",
+    RegistryCohortName == "TumourPelvis"
+  ) |> ggplot(aes(y = MSTSLowerTotal, x = TimePoint)) +
+    stat_halfeye(
+      alpha = 0.5,  # Transparency for overlap visibility
+      position = "identity",  # Overlay the distributions
+      na.rm = TRUE,
+      scale = 0.9  # Slightly scale down to avoid too much overlap
+    ) +
+    geom_text(
+      data = count_data,
+      aes(x = TimePoint, y = Inf, label = paste0("n=", n_responses)),
+      vjust = 1.2,
+      hjust = 0.5,
+      size = 3.5,
+      inherit.aes = FALSE
+    ) +
+    labs(
+      y = "MSTS Total",
+      x = "Time Point"
+      # fill = "Treatment",
+      # color = "Treatment"
+    ) +
+    theme_minimal() +
+    theme(
+      # legend.position = "top",
+      panel.grid.minor = element_blank(),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+  
+  
+  knitr::knit_print(FigureTPMSTS)
+  
+  ```
