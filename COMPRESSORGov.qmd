@@ -6,8 +6,8 @@ version: 3.0
 type: "website"
 number-sections: true
 number-depth: 3
-date: "2025-Jul-31"
-date-modified: "2025-Sep-30"
+date: "2026-Mar-10"
+date-modified: "2026-May-07"
 
 bibliography: CompressorGov references.bib
 
@@ -163,18 +163,19 @@ gs4_auth(token = drive_token())
 
 ComplicTable <- googlesheets4::read_sheet(
   ss = SheetIDs$DbSS,
-  sheet = "Complications", 
-  col_names = TRUE, 
-  col_types = "cccTciicicccccccccccccccccDccD"
+  sheet = "Complications",
+  col_names = TRUE,
+  col_types = "cccTciicicccccccccccccccccDccD",
+  skip = 1
   )
 
 
 #To match to acctData
 PatientTable <- googlesheets4::range_read(
   ss = SheetIDs$DbSS,
-  sheet = "Patient", 
+  sheet = "Patient",
   range = "A10:Q",
-  col_names = FALSE, 
+  col_names = FALSE,
   col_types = "DccccDcccDcicccDi"
   )
 
@@ -182,17 +183,17 @@ PatientTable <- googlesheets4::range_read(
 Patient_Col <- c(
   "PatientCreationDate",
   "PatientID",
-  "LastName",	
-  "FirstName",	
-  "AlternateID",	
-  "DateOfBirth",	
-  "Sex",	
-  "RegistryStatus",	
-  "RegistryStatusNotes",	
-  "DateRegistryStatus",	
-  "NotificationMethod",	
-  "NoTreatmentRecords",	
-  "Email",	
+  "LastName",
+  "FirstName",
+  "AlternateID",
+  "DateOfBirth",
+  "Sex",
+  "RegistryStatus",
+  "RegistryStatusNotes",
+  "DateRegistryStatus",
+  "NotificationMethod",
+  "NoTreatmentRecords",
+  "Email",
   "Phone",
   "PatientRegistrationStatus",
   "DatePatientRegistration",
@@ -202,22 +203,44 @@ Patient_Col <- c(
 colnames(PatientTable) <- Patient_Col
 
 
+TreatTable <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "Treatment", 
+  range = "A7:Z",
+  col_names = FALSE
+  )
+
+TreatTableCol <- googlesheets4::range_read(
+  ss = SheetIDs$DbSS,
+  sheet = "Treatment", 
+  range = "A1:Z1",
+  col_names = FALSE
+  )
+
+ colnames(TreatTable) <- TreatTableCol
+
+
 ```
 
-A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (30-Sep-2025).
+A static registry snapshot was retrieved and formatted based on the fixed date of preparation of the snapshot (10-Mar-2026).
 
 ```{r}
+
+CurrentDate <- as.character("20260507")
 
 # Authenticate for sheets using the same token
 gs4_auth(token = drive_token())
 
 # To get a snapshot from a specific folder (e.g., "20230415")
-specific_snapshot <- get_specific_snapshot("20250930")
+specific_snapshot <- get_specific_snapshot("20260507")
 
 
 ```
 
 ```{r}
+#| execute: true
+
+# The snapshot coming out of the framework is over filtering the records and I dont know yet where to make the fix. I think it could be a structural issue. I think I will just bypass the snapshot for now and read in the sheets raw.
 
 temp_file1 <- tempfile(fileext = ".xlsx")
 drive_download(
@@ -261,7 +284,9 @@ Snapshot <- openxlsx2::wb_to_df(
     stringr::str_detect(TreatmentType, "Revision"),
     "Revision",
     "Primary"
-)
+),
+AgeAtInitialExam = as.numeric(AgeAtInitialExam),
+AgeAtTreatment = as.numeric(AgeAtTreatment)
   ) |> unite(
   col = "CombID",
   sep = ".",
@@ -286,9 +311,589 @@ COMPRESSOR (Complex Reconstructive Surgery Outcomes Registry) is a clinical qual
 
 1.  25-Feb-2022 to 29-Sep-2022
 
-2.  27-Mar-2025 to present
+2.  27-Mar-2025 to 2-Oct-2025
+
+3.  15-Feb-2026 to Present
 
 It should be noted that collection of PROMs has been heavily restricted for this registry due to concerns over appropriateness to follow up patients at high-risk of mortality or other contraindications for completing scores. These restrictions have only recently been lifted, and only then for cases receiving hardware components of interest (Ossis, Stryker GMRS-MRH).
+
+#Snapshot validation
+
+```{r}
+# Identify dropped records
+dropped_records <- TreatTable |> filter(
+  lubridate::ymd(DateTreatmentRecordCreation) <= ymd(CurrentDate)
+) |> mutate(
+  TreatmentID = as.character(
+    TreatmentID
+    )
+  ) |> anti_join(
+      Snapshot, by = "TreatmentID"
+      )
+
+# Row count summary
+epoxy(
+  "TreatTable (live):   {nrow(TreatTable)} records",
+  "Snapshot (pipeline): {nrow(Snapshot)} records",
+  "Dropped records:     {nrow(dropped_records)} records",
+  .sep = "\n"
+)
+```
+
+# Data Preparation
+
+```{r}
+#| label: proms-setup
+
+PROMHOOS12 <- Snapshot |>
+  dplyr::select(
+    TreatmentID,
+    starts_with("HOOS12_Summary_TotalScore"),
+    starts_with("EligibleAt"),
+    -EligibleAtIntraop
+  ) |>
+  rename_with(
+    ~ .x |>
+      str_replace("^EligibleAtx", "EligibleAt_") |>   # EligibleAtx3months -> EligibleAt_3months
+      str_replace("^EligibleAtP", "EligibleAt_P"),     # EligibleAtPreop    -> EligibleAt_Preop
+    starts_with("EligibleAt")
+  ) |>
+  pivot_longer(
+    cols = !TreatmentID,
+    names_to = c(".value", "TimePoint"),
+    names_pattern = "^(.+?)_(Preop|\\d+months)$",
+    values_drop_na = TRUE
+  ) |> mutate(
+  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
+  HOOS12SummaryTotal = as.numeric(HOOS12_Summary_TotalScore)
+) |> dplyr::filter(
+  EligibleAt == "Yes",
+  !is.na(TimePoint)
+) |> left_join(
+  Snapshot |> dplyr::select(
+    TreatmentID,
+    SurgicalTreatment2,
+    TreatmentType2,
+    TreatmentStatus,
+    RegistryCohortName,
+    AnalysisLabel
+  ),
+  by = "TreatmentID"
+) |> unite(
+    "TimePointID",
+    c("TreatmentID","TimePoint"),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+    )
+
+PROMKOOS12 <- Snapshot |>
+  dplyr::select(
+    TreatmentID,
+    starts_with("KOOS12_Summary_TotalScore"),
+    starts_with("EligibleAt"),
+    -EligibleAtIntraop
+  ) |>
+  rename_with(
+    ~ .x |>
+      str_replace("^EligibleAtx", "EligibleAt_") |>   # EligibleAtx3months -> EligibleAt_3months
+      str_replace("^EligibleAtP", "EligibleAt_P"),     # EligibleAtPreop    -> EligibleAt_Preop
+    starts_with("EligibleAt")
+  ) |>
+  pivot_longer(
+    cols = !TreatmentID,
+    names_to = c(".value", "TimePoint"),
+    names_pattern = "^(.+?)_(Preop|\\d+months)$",
+    values_drop_na = TRUE
+  ) |> mutate(
+  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
+  KOOS12SummaryTotal = as.numeric(KOOS12_Summary_TotalScore)
+) |> dplyr::filter(
+  EligibleAt == "Yes",
+  !is.na(TimePoint)
+) |> left_join(
+  Snapshot |> dplyr::select(
+    TreatmentID,
+    SurgicalTreatment2,
+    TreatmentType2,
+    TreatmentStatus,
+    RegistryCohortName,
+    AnalysisLabel
+  ),
+  by = "TreatmentID"
+) |> unite(
+    "TimePointID",
+    c("TreatmentID","TimePoint"),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+    )
+
+PROMMSTS <- Snapshot |>
+  dplyr::select(
+    TreatmentID,
+    starts_with("MSTSLower_Total"),
+    starts_with("EligibleAt"),
+    -EligibleAtIntraop
+  ) |>
+  rename_with(
+    ~ .x |>
+      str_replace("^EligibleAtx", "EligibleAt_") |>   # EligibleAtx3months -> EligibleAt_3months
+      str_replace("^EligibleAtP", "EligibleAt_P"),     # EligibleAtPreop    -> EligibleAt_Preop
+    starts_with("EligibleAt")
+  ) |>
+  pivot_longer(
+    cols = !TreatmentID,
+    names_to = c(".value", "TimePoint"),
+    names_pattern = "^(.+?)_(Preop|\\d+months)$",
+    values_drop_na = TRUE
+  ) |> dplyr::filter(
+   EligibleAt == "Yes",
+   TimePoint != "Preop",
+   !is.na(TimePoint)
+ ) |> mutate(
+  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
+) |> left_join(
+   Snapshot |> dplyr::select(
+     TreatmentID,
+     SurgicalTreatment2,
+     RegistryCohortName,
+     TreatmentType2,
+     AnalysisLabel
+   ),
+   by = "TreatmentID"
+ ) |> unite(
+    "TimePointID",
+    c("TreatmentID","TimePoint"),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+    ) 
+
+
+PROMVR12 <- Snapshot |> dplyr::select(
+  TreatmentID,
+  starts_with("VR12PCS"),
+  starts_with("VR12MCS"),
+  starts_with("EligibleAt"),
+  -EligibleAtIntraop
+) |> rename_with(
+    ~ .x |>
+      str_replace("^EligibleAtx", "EligibleAt_") |>   # EligibleAtx3months -> EligibleAt_3months
+      str_replace("^EligibleAtP", "EligibleAt_P"),     # EligibleAtPreop    -> EligibleAt_Preop
+    starts_with("EligibleAt")
+    ) |> mutate(
+  across(matches("PCS|MCS"), ~as.numeric(.x))
+) |> pivot_longer(
+  cols = !TreatmentID,
+  names_to = c(".value","TimePoint"),
+  names_sep = "_",
+  values_drop_na = TRUE
+) |> mutate(
+  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
+) |> dplyr::filter(
+  EligibleAt == "Yes",
+  !is.na(TimePoint)
+) |> left_join(
+  Snapshot |> dplyr::select(
+    TreatmentID,
+    SurgicalTreatment2,
+    RegistryCohortName,
+    AnalysisLabel,
+    TreatmentType2
+  ),
+  by = "TreatmentID"
+) |> unite(
+    "TimePointID",
+    c("TreatmentID","TimePoint"),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+    )
+
+PROMBPI <- Snapshot |> dplyr::select(
+  TreatmentID,
+  starts_with("BPISFSeverityScore"),
+  starts_with("EligibleAt"),
+  -EligibleAtIntraop
+) |> rename_with(
+    ~ .x |>
+      str_replace("^EligibleAtx", "EligibleAt_") |>   # EligibleAtx3months -> EligibleAt_3months
+      str_replace("^EligibleAtP", "EligibleAt_P"),     # EligibleAtPreop    -> EligibleAt_Preop
+    starts_with("EligibleAt")
+    ) |> pivot_longer(
+  cols = !TreatmentID,
+  names_to = c(".value","TimePoint"),
+  names_sep = "_",
+  values_drop_na = TRUE
+) |> mutate(
+  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
+) |> dplyr::filter(
+  EligibleAt == "Yes",
+  !is.na(TimePoint)
+) |> left_join(
+  Snapshot |> dplyr::select(
+    TreatmentID,
+    SurgicalTreatment2,
+    RegistryCohortName,
+    TreatmentType2,
+    AnalysisLabel
+  ),
+  by = "TreatmentID"
+) |> unite(
+    "TimePointID",
+    c("TreatmentID","TimePoint"),
+    sep = ".",
+    na.rm = FALSE,
+    remove = FALSE
+    )
+
+```
+
+```{r}
+#| label: proms-table-helper
+
+# Helper: builds a Primary | Revision merged tbl_summary
+# with timepoints as columns and median (IQR), n per cell
+#
+# Arguments:
+#   data       - long-format PROM dataframe with TreatmentType2 and TimePoint
+#   score_var  - unquoted column name of the score variable
+#   score_label - string label for the score row
+#   timepoints - character vector of timepoint levels to include
+
+build_prom_table <- function(data, score_var, score_label, timepoints) {
+  
+  score_var <- rlang::ensym(score_var)
+  
+  data |>
+    dplyr::filter(
+      TimePoint %in% timepoints,
+      !is.na({{ score_var }}),
+      TreatmentType2 %in% c("Primary", "Revision")
+    ) |>
+    dplyr::mutate(
+      TimePoint = factor(TimePoint, levels = timepoints)
+    ) |>
+    dplyr::group_by(TimePoint, TreatmentType2) |>
+    dplyr::summarise(
+      Median = median({{ score_var }}, na.rm = TRUE),
+      Q1     = quantile({{ score_var }}, 0.25, na.rm = TRUE),
+      Q3     = quantile({{ score_var }}, 0.75, na.rm = TRUE),
+      n      = sum(!is.na({{ score_var }})),
+      .groups = "drop"
+    ) |>
+    dplyr::mutate(
+      Cell = dplyr::if_else(
+        n > 0,
+        glue::glue("{round(Median,1)} ({round(Q1,1)}, {round(Q3,1)}), n={n}"),
+        NA_character_
+      )
+    ) |>
+    dplyr::select(TimePoint, TreatmentType2, Cell) |>
+    tidyr::pivot_wider(
+      names_from  = TreatmentType2,
+      values_from = Cell
+    ) |>
+    dplyr::mutate(Score = score_label) |>
+    dplyr::relocate(Score, TimePoint)
+}
+```
+
+## Base cohort (complic-cohort-base)
+
+```{r}
+#| label: complic-cohort-base
+
+ImplantCohort <- Snapshot |>
+  dplyr::filter(
+    SurgicalTreatment2 == "Surgical",
+    !is.na(RegistryCohortName),
+    RegistryCohortName != "General"
+  ) |>
+  dplyr::select(
+    TreatmentID,
+    CombID,
+    DateTreatment,
+    TreatmentStatus,
+    TreatmentStatusNotes,
+    RegistryCohortName,
+    AnalysisLabel
+  )
+```
+
+```{r}
+#| label: complic-table2
+
+ComplicTable2 <- ComplicTable |>
+  dplyr::select(
+    ComplicationID,
+    TreatmentID,
+    ComplicationOccurrence,
+    DateOfOccurrence,
+    DateReoperation,
+    ComplicationNature,
+    ComplicationTreatmentOffered
+  ) |>
+  left_join(
+    ImplantCohort |>
+      dplyr::select(TreatmentID, DateTreatment, RegistryCohortName),
+    by = "TreatmentID"
+  ) |>
+  dplyr::filter(!is.na(RegistryCohortName)) |>
+  dplyr::mutate(
+    Term3 = stringr::str_to_lower(ComplicationNature),
+    Mortality = if_else(
+      stringr::str_detect(Term3, "died|death|deceas|mortality"),
+      "Mortality", "No"
+    ),
+    Infection1 = if_else(
+      stringr::str_detect(Term3, "(implant.+retention)|(periprosthetic.+infect)|(prosthe\\w+.+infect)|suppress|(communication.+prosthesis)|(sinus.+arthroplasty)|((stump|cavity).+infect)"),
+      "InfectionDeep", "No"
+    ),
+    Infection2 = if_else(
+      stringr::str_detect(Term3, "superficial|abscess|cellulitis|(surgical site)|wound.+infect|(skin.+tear)") &
+        stringr::str_detect(Term3, "superficial wound dehiscence", negate = TRUE) &
+        Infection1 == "No",
+      "InfectionSuperficial", "No"
+    ),
+    Infection3 = if_else(
+      stringr::str_detect(Term3, "(urinary.+infect)|diverticulitis|pneumon|pyrexia|(abdominal.+collection)") &
+        Infection1 == "No",
+      "InfectionSyst", "No"
+    ),
+    Tumour1 = if_else(
+      stringr::str_detect(Term3, "carcinoma|recurr|tumour|metasta|margin|chemo"),
+      "Tumour", "No"
+    ),
+    Loosening = if_else(
+  stringr::str_detect(Term3, "loosen|fixation failure") &
+    stringr::str_detect(Term3, "stem|component|prosthes|implant|femoral|tibial|patella|pubic|pelvic|acetabul"),
+  "Loosening", "No"
+),
+   Hardware = if_else(
+  stringr::str_detect(Term3, "irritat|explant|broke|device|cable|screw|\\basis\\b|wire|plate|grip") &
+    Loosening == "No",
+  "Hardware", "No"
+),
+    Instability = if_else(
+      stringr::str_detect(Term3, "instab|sublux|disloc"),
+      "Dislocation", "No"
+    ),
+    Neurological = if_else(
+      stringr::str_detect(Term3, "nerve|palsy|radiculopathy|foot drop|weakness"),
+      "Neurological", "No"
+    ),
+    Fracture = if_else(
+      stringr::str_detect(Term3, "fract"),
+      "Fracture", "No"
+    ),
+    Wound = if_else(
+      stringr::str_detect(Term3, "dehiscence|wound|stitch|ooze|necrot") &
+        Infection1 == "No" & Infection2 == "No",
+      "Wound", "No"
+    ),
+    Thrombosis = if_else(
+      stringr::str_detect(Term3, "dvt|embo|\\bpe\\b|occlus|thromb"),
+      "Thrombosis", "No"
+    )
+  ) |>
+  dplyr::rowwise() |>
+  dplyr::mutate(
+    Other = if_else(
+      any(stringr::str_detect(
+        c_across(c(Mortality, Infection1, Infection2, Infection3, Tumour1,
+                   Loosening, Hardware, Instability, Neurological,
+                   Fracture, Wound, Thrombosis)),
+        "No", negate = TRUE
+      )),
+      "No", "Other"
+    ),
+    Tumour2 = case_when(
+      Tumour1 == "Tumour" & stringr::str_detect(Term3, "debulk|recurr|margin|pelvis") ~ "TumourLocal",
+      Tumour1 == "Tumour" & stringr::str_detect(Term3, "chest|myeloma|lung|breast|pulmonary|clavicle") ~ "TumourSystemic",
+      .default = "No"
+    )
+  ) |>
+  dplyr::ungroup()
+```
+
+```{r}
+#| label: complic-table2a
+
+ComplicTable2a <- ComplicTable2 |>
+  dplyr::filter(
+    ComplicationTreatmentOffered == "Surgical") |>
+  dplyr::select(-DateOfOccurrence) |>
+  dplyr::rename(DateOfOccurrence = "DateReoperation") |>
+  dplyr::mutate(
+    ImplantRemoval = if_else(
+      stringr::str_detect(Term3, "explant"),
+      "ImplantRemoval", "No"
+    ),
+    Amputation = if_else(
+      stringr::str_detect(Term3, "amput*|hindquarter"),
+      "Amputation", "No"
+    ),
+    Reoperation = if_else(
+      Amputation == "No" & ImplantRemoval == "No",
+      "Reoperation", "No"
+    ),
+    ComplicationOccurrence = "Yes - Clinician Confirmed"
+  ) |> dplyr::select(
+    ComplicationID, TreatmentID, ComplicationOccurrence,
+    DateOfOccurrence, Term3, RegistryCohortName,
+    Reoperation, ImplantRemoval, Amputation, DateTreatment
+  ) |>
+  bind_rows(ComplicTable2 |> dplyr::filter(
+    str_detect(Term3, "test", negate = TRUE)
+  )) |>
+  dplyr::relocate(Reoperation:Amputation, .after = Tumour2) |>
+  dplyr::mutate(
+    across(Mortality:Amputation, ~replace_na(.x, "No"))
+  )
+```
+
+```{r}
+#| label: complic-table3
+
+category_order <- c(
+  "Other", "Wound", "Hardware", "Fracture", "Neurological", "Dislocation",
+  "Loosening", "Thrombosis", "TumourSystemic", "TumourLocal",
+  "InfectionSyst", "InfectionSuperficial", "InfectionDeep",
+  "Reoperation", "Amputation", "ImplantRemoval", "Mortality", "Censored"
+)
+
+ComplicTable3 <- ComplicTable2a |>
+  pivot_longer(
+    cols = c(
+      Mortality, ImplantRemoval, Reoperation,
+      Infection1, Infection2, Infection3,
+      Amputation, Tumour2, Thrombosis, Loosening,
+      Instability, Neurological, Fracture, Hardware, Wound, Other
+    ),
+    cols_vary = "slowest",
+    names_to = "Category_Name",
+    values_to = "Category_Value",
+    values_drop_na = FALSE
+  ) |>
+  dplyr::filter(Category_Value != "No") |>
+  dplyr::group_by(TreatmentID) |>
+  dplyr::arrange(dplyr::desc(DateOfOccurrence), .by_group = TRUE) |>
+  dplyr::distinct(
+    pick(TreatmentID, DateOfOccurrence, Category_Value, DateTreatment),
+    .keep_all = TRUE
+  ) |>
+  dplyr::mutate(
+    OccurDelay = as.numeric(
+      as.duration(interval(ymd(DateTreatment), ymd(DateOfOccurrence))),
+      "weeks"
+    ),
+    Intraop = if_else(OccurDelay == 0, "Yes", "No")
+  ) |>
+  dplyr::filter(DateOfOccurrence < ymd(CurrentDate)) |>
+  dplyr::ungroup()
+```
+
+```{r}
+#| label: complic-master
+
+ComplicCensor <- ImplantCohort |>
+  dplyr::filter(!(TreatmentID %in% ComplicTable3$TreatmentID)) |>
+  dplyr::mutate(
+    ComplicationOccurrence = "No",
+    DateOfOccurrence = ymd(CurrentDate),
+    Category_Value = "Censored"
+  )
+
+ComplicMaster <- bind_rows(
+  ComplicTable3 |>
+    dplyr::mutate(Category_Value = as.character(Category_Value)),
+  ComplicCensor |>
+    dplyr::select(TreatmentID, CombID, RegistryCohortName,
+                  ComplicationOccurrence, DateTreatment, DateOfOccurrence, Category_Value)
+) |>
+  dplyr::mutate(
+    Category = factor(Category_Value, levels = category_order),
+    SurgicalManagement = if_else(
+      ComplicationOccurrence == "Yes - Clinician Confirmed" &
+        Category_Value %in% c("Reoperation", "ImplantRemoval", "Amputation"),
+      "Surgical",
+      if_else(
+        ComplicationOccurrence == "Yes - Clinician Confirmed",
+        "Non-surgical", "None"
+      )
+    )
+  ) |>
+  dplyr::group_by(TreatmentID) |>
+  dplyr::arrange(DateOfOccurrence, .by_group = TRUE) |>
+  dplyr::mutate(
+    RowNum = row_number(),
+    DateOfOccurrence1 = if_else(
+      RowNum > 1 & DateOfOccurrence == lag(DateOfOccurrence),
+      DateOfOccurrence + days(RowNum),
+      DateOfOccurrence
+    ),
+    DurationStop = as.numeric(
+      as.duration(interval(ymd(DateTreatment), ymd(DateOfOccurrence1))),
+      "weeks"
+    ),
+    DurationStart = if_else(RowNum > 1, lag(DurationStop), 0),
+    DurationDiff  = DurationStop - DurationStart
+  ) |>
+  dplyr::ungroup() |>
+  dplyr::filter(DurationDiff > 0)
+
+ComplicEvents   <- ComplicMaster |> dplyr::filter(Category != "Censored")
+ComplicEndpoints <- ComplicMaster |> dplyr::filter(Category == "Censored")
+```
+
+```{r}
+#| label: complic-summary-prep
+
+category_display <- c(
+  "Wound", "Hardware", "Fracture", "Neurological", "Dislocation",
+  "Loosening", "Thrombosis", "TumourSystemic", "TumourLocal",
+  "InfectionSyst", "InfectionSuperficial", "InfectionDeep",
+  "Reoperation", "Amputation", "ImplantRemoval", "Mortality", "Other"
+)
+
+# Pivot events to wide, then add any missing category columns as "No"
+complic_pivot <- ComplicEvents |>
+  dplyr::filter(Category %in% category_display) |>
+  dplyr::distinct(TreatmentID, Category) |>
+  dplyr::mutate(present = "Yes") |>
+  tidyr::pivot_wider(
+    names_from  = Category,
+    values_from = present,
+    values_fill = list(present = "No")
+  )
+
+missing_cats <- setdiff(category_display, names(complic_pivot))
+if (length(missing_cats) > 0) {
+  complic_pivot[missing_cats] <- "No"
+}
+
+ComplicWide <- ImplantCohort |>
+  dplyr::select(TreatmentID, RegistryCohortName, AnalysisLabel) |>
+  left_join(
+    ComplicEvents |>
+      dplyr::summarise(
+        AnyComplication = "Yes",
+        AnySurgical     = if_else(any(SurgicalManagement == "Surgical"), "Yes", "No"),
+        .by = TreatmentID
+      ),
+    by = "TreatmentID"
+  ) |>
+  dplyr::mutate(
+    AnyComplication = replace_na(AnyComplication, "No"),
+    AnySurgical     = replace_na(AnySurgical, "No")
+  ) |>
+  left_join(complic_pivot, by = "TreatmentID") |>
+  dplyr::mutate(
+    across(any_of(category_display), ~replace_na(.x, "No"))
+  )
+```
 
 # Recruitment Flow by Region
 
@@ -338,7 +943,7 @@ STROBEFlow2 <- STROBEInput |>
 
 ```{r}
 
-CurrentDate <- as.character("20250731")
+
 
 STROBEFlow3 <- STROBEFlow2 |> dplyr::mutate(
     exclusion1 = case_when(
@@ -518,9 +1123,9 @@ FigureMissBase <- gg_miss_fct(Snapshot |> dplyr::filter(
         ), 
       RegistryCohortName
       ) + scale_fill_viridis_c(
-    option = "plasma",  # or "inferno", "magma", "cividis"
+    option = "magma",  # or "inferno", "magma", "cividis"
     name = "% Missing",
-    limits = c(50, 100)  # Set limits from 0% to 100%
+    limits = c(0, 100)  # Set limits from 0% to 100%
   ) +
   geom_text(data = samplesizeBase, 
             aes(x = RegistryCohortName, y = 0.7, label = paste0("n=", n)),
@@ -545,60 +1150,26 @@ As the registry has been running for a relatively short period of time, the foll
 
 
 
-PROMVR12 <- Snapshot |> dplyr::select(
-  TreatmentID,
-  starts_with("VR12"),
-  starts_with("EligibleAt"),
-  -EligibleAtIntraop
-) |> rename_with(
-  ~gsub("Atx","At_",.x, fixed = TRUE)
-) |> rename_with(
-  ~gsub("VR12_PCS","VR12PCS",.x, fixed = TRUE)
-) |> dplyr::rename(
-  EligibleAt_Preop = "EligibleAtPreop"
-  ) |> pivot_longer(
-  cols = !TreatmentID,
-  names_to = c(".value","TimePoint"),
-  names_sep = "_",
-  values_drop_na = TRUE
-) |> mutate(
-  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
-) |> dplyr::filter(
-  EligibleAt == "Yes",
-  !is.na(TimePoint)
-) |> left_join(
-  Snapshot |> dplyr::select(
-    TreatmentID,
-    SurgicalTreatment2,
-    RegistryCohortName
-  ),
-  by = "TreatmentID"
-) |> unite(
-    "TimePointID",
-    c("TreatmentID","TimePoint"),
-    sep = ".",
-    na.rm = FALSE,
-    remove = FALSE
-    )
-
 SampleSizeVR12 <- PROMVR12 |> 
   dplyr::filter(
-    SurgicalTreatment2 == "Surgical"
+    SurgicalTreatment2 == "Surgical",
+    RegistryCohortName != "General"
   ) |> 
   dplyr::count(TimePoint, name = "n")
 
 FigureVR12Miss <- gg_miss_fct(PROMVR12 |> dplyr::filter(
       !is.na(EligibleAt),
-      SurgicalTreatment2 == "Surgical"
+      SurgicalTreatment2 == "Surgical",
+      RegistryCohortName != "General"
       ) |> dplyr::select(
         VR12PCS,
         TimePoint
         ), 
       TimePoint
       ) + scale_fill_viridis_c(
-    option = "plasma",  # or "inferno", "magma", "cividis"
+    option = "magma",  # or "inferno", "magma", "cividis"
     name = "% Missing",
-    limits = c(50, 100)  # Set limits from 0% to 100%
+    limits = c(0, 100)  # Set limits from 0% to 100%
   ) +
   geom_text(data = SampleSizeVR12, 
             aes(x = TimePoint, y = 0.7, label = paste0("n=", n)),
@@ -622,46 +1193,8 @@ Eligibility for PROMs capture had to be calculated by determining the date on wh
 #| label: fig-msts-miss
 #| fig-cap: "Missingness of MSTS by Timepoint cohort"
 
-Snapshot2 <- Snapshot |> dplyr::filter(
-  !(RegistryCohortName == "TumourUpperLimb" | RegistryCohortName == "General")
-  ) |> rename_with(
-  ~gsub("Atx","At_",.x, fixed = TRUE)
-) |> rename_with(
-  ~gsub("MSTSLower_Total","MSTSLowerTotal",.x, fixed = TRUE)
-) |> rename(
-  EligibleAt_Preop = "EligibleAtPreop"
-)
 
-PROMMSTS <- Snapshot2 |> dplyr::select(
-  TreatmentID,
-  starts_with("MSTSLowerTotal"),
-  starts_with("EligibleAt"),
-  -EligibleAtIntraop
-) |> pivot_longer(
-  cols = !TreatmentID,
-  names_to = c(".value","TimePoint"),
-  names_sep = "_",
-  values_drop_na = TRUE
-) |> dplyr::filter(
-   EligibleAt == "Yes",
-   TimePoint != "Preop",
-   !is.na(TimePoint)
- ) |> mutate(
-  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
-) |> left_join(
-   Snapshot2 |> dplyr::select(
-     TreatmentID,
-     SurgicalTreatment2,
-     RegistryCohortName
-   ),
-   by = "TreatmentID"
- ) |> unite(
-    "TimePointID",
-    c("TreatmentID","TimePoint"),
-    sep = ".",
-    na.rm = FALSE,
-    remove = FALSE
-    ) 
+
 
 SampleSizeMSTS <- PROMMSTS |> 
   dplyr::filter(
@@ -670,10 +1203,10 @@ SampleSizeMSTS <- PROMMSTS |>
   ) |> 
   dplyr::count(TimePoint, name = "n")
 
-FigureMSTSMiss <- gg_miss_fct(PROMMSTS |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dplyr::select(MSTSLowerTotal,TimePoint), TimePoint) + scale_fill_viridis_c(
-    option = "plasma",  # or "inferno", "magma", "cividis"
+FigureMSTSMiss <- gg_miss_fct(PROMMSTS |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dplyr::select(MSTSLower_Total,TimePoint), TimePoint) + scale_fill_viridis_c(
+    option = "magma",  # or "inferno", "magma", "cividis"
     name = "% Missing",
-    limits = c(50, 100)  # Set limits from 0% to 100%
+    limits = c(0, 100)  # Set limits from 0% to 100%
   ) +
   geom_text(data = SampleSizeMSTS, 
             aes(x = TimePoint, y = 0.7, label = paste0("n=", n)),
@@ -692,58 +1225,17 @@ The MSTS (@fig-msts-miss) is presented to TumourPelvis, TumourLowerLimb and Rein
 #| fig-cap: "Missingness of HOOS12 by Timepoint in Surgical Cases of ReinterventionTHA"
 
 
-Snapshot3 <- Snapshot |> dplyr::filter(
-  (RegistryCohortName == "ReinterventionTHA" | RegistryCohortName == "TumourPelvis")
-) |> rename_with(
-  ~gsub("Atx","At_",.x, fixed = TRUE)
-) |> rename_with(
-  ~gsub("HOOS12_Summary_TotalScore","HOOS12SummaryTotal",.x, fixed = TRUE)
-) |> rename(
-  EligibleAt_Preop = "EligibleAtPreop"
-)
-
-PROMHOOS12 <- Snapshot3 |> dplyr::select(
-  TreatmentID,
-  starts_with("HOOS12SummaryTotal"),
-  starts_with("EligibleAt"),
-  -EligibleAtIntraop
-) |> pivot_longer(
-  cols = !TreatmentID,
-  names_to = c(".value","TimePoint"),
-  names_sep = "_",
-  values_drop_na = TRUE
-) |> mutate(
-  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
-  HOOS12SummaryTotal = as.numeric(HOOS12SummaryTotal)
-) |> dplyr::filter(
-  EligibleAt == "Yes",
-  !is.na(TimePoint)
-) |> left_join(
-  Snapshot3 |> dplyr::select(
-    TreatmentID,
-    SurgicalTreatment2,
-    TreatmentType,
-    TreatmentStatus
-  ),
-  by = "TreatmentID"
-) |> unite(
-    "TimePointID",
-    c("TreatmentID","TimePoint"),
-    sep = ".",
-    na.rm = FALSE,
-    remove = FALSE
-    )
-
 SampleSizeHOOS12 <- PROMHOOS12 |> 
   dplyr::filter(
-    SurgicalTreatment2 == "Surgical"
+    SurgicalTreatment2 == "Surgical",
+    RegistryCohortName == "ReinterventionTHA"
   ) |> 
   dplyr::count(TimePoint, name = "n")
 
-FigureHOOSMiss <- gg_miss_fct(PROMHOOS12 |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dplyr::select(contains("HOOS12SummaryTotal"), TimePoint), TimePoint) + scale_fill_viridis_c(
-    option = "plasma",  # or "inferno", "magma", "cividis"
+FigureHOOSMiss <- gg_miss_fct(PROMHOOS12 |> dplyr::filter(SurgicalTreatment2 == "Surgical") |> dplyr::select(contains("HOOS12_Summary_TotalScore"), TimePoint), TimePoint) + scale_fill_viridis_c(
+    option = "magma",  # or "inferno", "magma", "cividis"
     name = "% Missing",
-    limits = c(50, 100)  # Set limits from 0% to 100%
+    limits = c(0, 100)  # Set limits from 0% to 100%
   ) +
   geom_text(data = SampleSizeHOOS12, 
             aes(x = TimePoint, y = 0.7, label = paste0("n=", n)),
@@ -759,92 +1251,72 @@ knitr::knit_print(FigureHOOSMiss)
 
 The HOOS12 (@fig-hoos12-miss) is presented only to the ReinterventionTHA cohort at all of the registry timepoints. The reduced capture preoperatively may be due to a number of underlying factors which are not yet clear. It may be that the cohort selection within the system has been too slow to capture patients prior to surgery or that patients are dropping out before filling in the HOOS (questionnaire fatigue) within the questionnaire pack.
 
-# Cohort Analysis
+# Clinical Results by Patient Group
 
-The VR12 is a *general* health questionnaire that is presented to *all* patients enrolled in the registry. It comprises two components to the score, *Physical* and *Mental*.
+This section presents results for each patient cohort in a consistent structure: who was treated, how the procedure held up over time, and how patients reported their quality of life and physical function. Each subsection opens with a plain-language summary of the key findings before the supporting data.
+
+The VR12 is a *general* health questionnaire presented to *all* patients enrolled in the registry, covering two components: *Physical* and *Mental* health. Cohort-specific questionnaires (MSTS, HOOS-12, KOOS-12, BPI) are described where they appear.
+
+## Cross-cohort Overview
+
+::: {.callout-tip title="What this shows"}
+- Physical health scores (VR12) vary considerably within and between cohorts at 12 months, reflecting the diversity of diagnoses and treatment complexity across the registry
+- The Tumour Pelvis cohort shows a split pattern — a subgroup with relatively preserved physical function alongside a subgroup with substantially reduced scores
+- Musculoskeletal function scores (MSTS) show a gradual decline over time in the Tumour Lower Limb group, consistent with the expected trajectory after limb-salvage surgery; the apparent improvement at 10 years is likely an artefact of survivor bias (see note below)
+- These patterns are based on small, cross-sectional samples and should be treated as preliminary observations rather than definitive trends
+:::
 
 ```{r}
-#| label: fig-vr12-cohort
-#| fig-cap: "Summary (median with interquartile ranges) of VR12 Physical Component Score at 12months by cohort"
+#| label: tbl-vr12-cohort
+#| tbl-cap: "Summary (median with interquartile ranges) of VR12 Physical Component Score at 12months by cohort"
 
-Snapshot <- dplyr::mutate(
-  Snapshot,
-  across(contains("Score"), ~as.numeric(.))
-)
-
-FigureVR12 <- Snapshot |> dplyr::filter(SurgicalTreatment2 == "Surgical") |>
-  ggplot(aes(y = RegistryCohortName, x = VR12PCS_12months)) +
-  stat_halfeye(
-    point_interval = median_qi,  # median and interquartile range
-    .width = c(0.50, 0.95),   # quartile ranges
-    interval_size_range = c(0.5, 1.5),  # Thin and bold line weights,
-    fill = "steelblue"
+TblVR12 <- Snapshot |> dplyr::filter(
+  SurgicalTreatment2 == "Surgical",
+  RegistryCohortName != "General",
+  EligibleAtx12months == "Yes"
+  ) |> dplyr::select(
+    VR12PCS_12months,
+    VR12MCS_12months,
+    RegistryCohortName
+  ) |> gtsummary::tbl_summary(
+    by = "RegistryCohortName",
+    label = list(
+      VR12PCS_12months = "Physical Component",
+      VR12MCS_12months = "Mental Component"
+      )
   )
 
-
-knitr::knit_print(FigureVR12)
+knitr::knit_print(TblVR12)
 
 ```
 
-Between-cohort variability is observed for the Physical Component Score of the VR12 (@fig-vr12-cohort). Most notable is the high variation within all cohorts. Interestingly, the TumourPelvis cohort presents in a bimodal distribution, with some patients with good physical function while others are quite low.
+Between-cohort variability is observed for the Physical Component Score of the VR12 at 12 months (@tbl-vr12-cohort). Most notable is the wide spread of scores within all cohorts. The Tumour Pelvis cohort shows a bimodal pattern, with some patients reporting good physical function and others quite low — likely reflecting the heterogeneity of pelvic tumour presentations and surgical approaches.
 
-```{r}
-#| label: fig-msts
-#| fig-cap: "Summary of MSTS by Timepoint"
-
-#preop_position <- which(levels(PROMQDASH$TimePoint) == "Preop")
-
-FigureMSTS <- PROMMSTS |> dplyr::filter(
-  !(is.na(SurgicalTreatment2)),
-  !is.na(MSTSLowerTotal)
-) |> ggplot(aes(y = MSTSLowerTotal, x = TimePoint, fill = SurgicalTreatment2, color = SurgicalTreatment2)) +
-  stat_halfeye(
-    alpha = 0.5,  # Transparency for overlap visibility
-    position = "identity",  # Overlay the distributions
-    na.rm = TRUE,
-    scale = 0.9,  # Slightly scale down to avoid too much overlap
-    point_interval = median_qi,  # median and interquartile range
-    #.width = c(0.50, 0.95),   # quartile ranges
-    interval_size_range = c(0.5, 1.5)  # Thin and bold line weights
-  ) +
-  # Add appropriate scale colors "Surgery recommended" = "darkred"
-  scale_fill_manual(values = c(
-    "Surgical" = "steelblue", 
-    "Non-Surgical" = "darkred"
-    )
-    ) +
-  scale_color_manual(values = c(
-    "Surgical" = "steelblue4", 
-    "Non-Surgical" = "darkred"
-    )
-    ) +
-  labs(
-    y = "MSTSLowerTotal",
-    x = "Time Point",
-    fill = "Treatment",
-    color = "Treatment"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.position = "top",
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  ) + facet_wrap(
-    ~RegistryCohortName, ncol = 2
-  )
-
-knitr::knit_print(FigureMSTS)
-```
-
-Athough the capture for MSTS remains sparse and largely cross-sectional, a pattern of linear decrease in the median MSTS score can be observed for the TumourLowerLimb cohort in @fig-msts. The improved median score at the 10 year follow-up may reflect the impact of survivor bias on the PROMs results in this cohort.
-
-::: {#survivorbias .callout-note}
-Survivor bias is the systematic alteration of outcome measures due to the relationship between the measure and the status of the patient at followup, mediated by the length of followup. The longer the followup, the less likely that low functioning patients have survived long enough for the registry to seek PROMs from them.
+::: {#survivorbias .callout-note collapse="true" title="Technical note: survivor bias"}
+Survivor bias occurs when the patients remaining available for follow-up at a given timepoint are systematically different from those who have been lost — in this context, because patients with poorer function are more likely to have died or become unreachable before later timepoints. This means long-term PROMs may overestimate the functional status of the surviving cohort as a whole.
 :::
 
 ## Tumour Pelvis
 
-The tumour pelvis cohort included in this report include all cases presenting with abnormal growths directly interacting with the bones of the pelvis. While this contains Ossis cases, these are not the majority of cases included.
+This cohort includes all cases presenting with abnormal growths directly interacting with the bones of the pelvis. While Ossis (3D-printed patient-specific implant) cases are included, they do not represent the majority of this cohort.
+
+::: {.callout-tip title="Key findings"}
+- Approximately 70% of primary cases remain free of procedure failure at 10 years; revision cases show substantially worse durability, with median survival around 6 years
+- Patient-reported musculoskeletal function (MSTS) is captured at follow-up across multiple timepoints, though sample sizes remain small
+- Physical health scores are highly variable within this cohort, consistent with the complexity and heterogeneity of pelvic tumour presentations
+- Survival estimates should be interpreted cautiously given small numbers and competing risks from mortality (see note in Observations)
+:::
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+### Who were these patients?
 
 ```{r}
 #| label: tbl-tp-demographics
@@ -878,6 +1350,8 @@ TableTPdemo <- gtsummary::tbl_summary(
 knitr::knit_print(TableTPdemo)
 ```
 
+### How did the procedure hold up?
+
 ```{r}
 #| label: survival-prep-tp
 
@@ -902,7 +1376,7 @@ SnapshotTP2 <- SnapshotTP |> dplyr::mutate(
 
 ```{r}
 #| label: fig-survtp
-#| fig-cap: "Survival curve for Tumour Pelvis cases by treatment type"
+#| fig-cap: "Procedure survival for Tumour Pelvis cases by treatment type"
 
 
 FigureSurvTP <- survfit2(Surv(Duration, Status) ~ TreatmentType2,
@@ -920,7 +1394,7 @@ knitr::knit_print(FigureSurvTP)
 
 ```{r}
 #| label: tbl-survTP
-#| tbl-cap: "Summary of Tumour Pelvis Procedure Survival"
+#| tbl-cap: "Tumour Pelvis: procedure survival at 1, 2, 5 and 10 years"
 
 TableSurvTP <- tbl_survfit(
   survfit2(Surv(Duration, Status) ~ TreatmentType2, 
@@ -935,63 +1409,104 @@ knitr::knit_print(TableSurvTP)
 
 ```
 
-The overall survival for surgical cases in this cohort are illustrated in @fig-survtp and summarised in @tbl-survTP, with median survival for revision cases occurring at \~ 6 years and primary cases achieving \~70% survival out to 10 years.
+Primary cases achieved approximately 70% survival at 10 years (@fig-survtp, @tbl-survTP). Revision cases fared considerably worse, with median survival at approximately 6 years. Confidence intervals are wide, reflecting small sample sizes.
+
+### What complications and reoperations were recorded?
 
 ```{r}
-#| label: fig-msts-tp
-#| fig-cap: "Summary of MSTS by Timepoint for presentations of Tumour Pelvis treated with surgery"
+#| label: tbl-complic-tp
+#| tbl-cap: "Complications and reoperations in the Tumour Pelvis cohort"
 
-
-# Calculate counts for each timepoint
-count_data <- PROMMSTS |> 
-  dplyr::filter(
-    SurgicalTreatment2 == "Surgical",
-    RegistryCohortName == "TumourPelvis",
-    !is.na(MSTSLowerTotal)
-  ) |> 
-  dplyr::count(TimePoint, name = "n_responses")
-
-#preop_position <- which(levels(PROMGHI$TimePoint) == "Preop")
-
-FigureTPMSTS <- PROMMSTS |> dplyr::filter(
-  SurgicalTreatment2 == "Surgical",
-  RegistryCohortName == "TumourPelvis"
-) |> ggplot(aes(y = MSTSLowerTotal, x = TimePoint)) +
-  stat_halfeye(
-    alpha = 0.5,  # Transparency for overlap visibility
-    position = "identity",  # Overlay the distributions
-    na.rm = TRUE,
-    scale = 0.9  # Slightly scale down to avoid too much overlap
-  ) +
-  geom_text(
-    data = count_data,
-    aes(x = TimePoint, y = Inf, label = paste0("n=", n_responses)),
-    vjust = 1.2,
-    hjust = 0.5,
-    size = 3.5,
-    inherit.aes = FALSE
-  ) +
-  labs(
-    y = "MSTS Total",
-    x = "Time Point"
-    # fill = "Treatment",
-    # color = "Treatment"
-  ) +
-  theme_minimal() +
-  theme(
-    # legend.position = "top",
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
-
-
-knitr::knit_print(FigureTPMSTS)
-
+tbl_summary(
+  ComplicWide |>
+    dplyr::filter(RegistryCohortName == "TumourPelvis") |>
+    dplyr::select(
+      AnyComplication, AnySurgical,
+      InfectionDeep, InfectionSuperficial, InfectionSyst,
+      Wound, Thrombosis, Neurological, Dislocation,
+      Loosening, Hardware, Fracture,
+      TumourLocal, TumourSystemic,
+      Reoperation, ImplantRemoval, Amputation, Mortality, Other
+    ) |> dplyr::mutate(
+  across(everything(), ~factor(.x, levels = c("No", "Yes")))
+),
+  label = list(
+    AnyComplication      ~ "Any complication detected",
+    AnySurgical          ~ "Required surgical management",
+    InfectionDeep        ~ "Deep / periprosthetic infection",
+    InfectionSuperficial ~ "Superficial infection",
+    InfectionSyst        ~ "Systemic infection",
+    Wound                ~ "Wound complication",
+    Thrombosis           ~ "Thrombotic event",
+    Neurological         ~ "Neurological complication",
+    Dislocation          ~ "Instability / dislocation",
+    Loosening            ~ "Component loosening",
+    Hardware             ~ "Hardware issue",
+    Fracture             ~ "Fracture",
+    TumourLocal          ~ "Local tumour event",
+    TumourSystemic       ~ "Systemic tumour event",
+    Reoperation          ~ "Unplanned reoperation",
+    ImplantRemoval       ~ "Implant removal",
+    Amputation           ~ "Amputation",
+    Mortality            ~ "Mortality",
+    Other                ~ "Other"
+  ),
+  type    = list(everything() ~ "dichotomous"),
+  value   = list(everything() ~ "Yes"),
+  missing = "no"
+) |>
+  bold_labels()
 ```
+
+### How did patients report their function?
+
+```{r}
+#| label: tbl-proms-tp
+#| tbl-cap: "Patient-reported outcomes by timepoint: Tumour Pelvis"
+
+tp_timepoints <- c("Preop", "3months", "6months", "12months", "24months", "60months", "120months")
+
+tp_vr12 <- PROMVR12 |>
+  dplyr::filter(RegistryCohortName == "TumourPelvis") 
+
+tp_hoos12 <- PROMHOOS12 |>
+  dplyr::filter(RegistryCohortName == "TumourPelvis") 
+
+tp_msts <- PROMMSTS |>
+  dplyr::filter(RegistryCohortName == "TumourPelvis") 
+
+bind_rows(
+  build_prom_table(tp_vr12, VR12PCS, "Physical Component", tp_timepoints),
+  build_prom_table(tp_vr12, VR12MCS, "Mental Component", tp_timepoints),
+  build_prom_table(tp_hoos12, HOOS12_Summary_TotalScore, "HOOS Total", tp_timepoints),
+  build_prom_table(tp_msts, MSTSLower_Total, "MSTS", tp_timepoints)
+) |>
+  gt::gt(groupname_col = "Score", rowname_col = "TimePoint") |>
+  gt::sub_missing(missing_text = "—") |>
+  gt::tab_options(
+    row_group.font.weight = "bold",
+    row_group.padding     = gt::px(6)
+  ) |>
+  gt::tab_footnote(
+    footnote  = "Median (Q1, Q3), n = non-missing observations",
+    locations = gt::cells_title()
+  )
+```
+
+MSTS scores for this cohort remain sparse (@tbl-proms-tp), making meaningful interpretation difficult at most timepoints. The available data are consistent with moderate functional limitation across the follow-up period, reflecting the surgical complexity of pelvic reconstruction.
 
 ## Tumour Lower Limb
 
-The tumour lower limb cohort included in this report include all cases presenting with abnormal growths directly interacting with the bones of the lower limb that do not include the pelvis. The majority of these cases treated surgically include GMRS or MRH components.
+This cohort includes all cases with abnormal growths directly involving the bones of the lower limb, excluding the pelvis. The majority of surgically treated cases in this cohort involve GMRS or MRH components.
+
+::: {.callout-tip title="Key findings"}
+- Primary cases show strong procedure durability, with approximately 60% surviving free of failure at 13 years
+- Revision cases fare considerably worse, with 60% survival reached at approximately 2.5 years
+- Pain levels (BPI) remain relatively low for primary cases across all timepoints, though small sample sizes limit conclusions for revision cases
+- Musculoskeletal function (MSTS) shows a gradual decline over time for this cohort — consistent with the natural history of limb-salvage patients — with the caveat of survivor bias at longer timepoints
+:::
+
+### Who were these patients?
 
 ```{r}
 #| label: tbl-tll-demographics
@@ -1022,84 +1537,7 @@ TableTLLdemo <- gtsummary::tbl_summary(
 knitr::knit_print(TableTLLdemo)
 ```
 
-```{r}
-
-
-PROMBPI <- Snapshot |> dplyr::select(
-  TreatmentID,
-  starts_with("BPISFSeverityScore"),
-  starts_with("EligibleAt"),
-  -EligibleAtIntraop
-) |> rename_with(
-  ~gsub("Atx","At_",.x, fixed = TRUE)
-) |> dplyr::rename(
-  EligibleAt_Preop = "EligibleAtPreop"
-  ) |> pivot_longer(
-  cols = !TreatmentID,
-  names_to = c(".value","TimePoint"),
-  names_sep = "_",
-  values_drop_na = TRUE
-) |> mutate(
-  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
-) |> dplyr::filter(
-  EligibleAt == "Yes",
-  !is.na(TimePoint)
-) |> left_join(
-  Snapshot |> dplyr::select(
-    TreatmentID,
-    SurgicalTreatment2,
-    RegistryCohortName,
-    TreatmentType2
-  ),
-  by = "TreatmentID"
-) |> unite(
-    "TimePointID",
-    c("TreatmentID","TimePoint"),
-    sep = ".",
-    na.rm = FALSE,
-    remove = FALSE
-    )
-
-```
-
-```{r}
-#| label: fig-bpi-tll
-#| fig-cap: "Summary of Brief Pain Inventory - Severity by Timepoint for primary presentations of Tumour Lower Limb"
-
-#preop_position <- which(levels(PROMGHI$TimePoint) == "Preop")
-
-FigureBPISev <- PROMBPI |> dplyr::filter(
-  SurgicalTreatment2 == "Surgical",
-  RegistryCohortName == "TumourLowerLimb"
-) |> ggplot(aes(y = BPISFSeverityScore, x = TimePoint, fill = TreatmentType2, color = TreatmentType2)) +
-  stat_halfeye(
-    alpha = 0.5,  # Transparency for overlap visibility
-    position = "identity",  # Overlay the distributions
-    na.rm = TRUE,
-    scale = 0.9  # Slightly scale down to avoid too much overlap
-  ) +
-  # Add appropriate scale colors
-  scale_fill_manual(values = c("Primary" = "steelblue", "Revision" = "darkred")) +
-  scale_color_manual(values = c("Primary" = "steelblue", "Revision" = "darkred")) +
-  labs(
-    y = "BPI Severity",
-    x = "Time Point",
-    fill = "Treatment",
-    color = "Treatment"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.position = "top",
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
-
-
-knitr::knit_print(FigureBPISev)
-
-```
-
-The severity of pain captured in the BPI short form remains difficult to compare between primary vs revision cases (@fig-bpi-tll) due to low sample sizes, but overall primary cases report relatively low pain up to 10 years postoperatively.
+### How did the procedure hold up?
 
 ```{r}
 #| label: survival-prep-tll
@@ -1159,11 +1597,104 @@ knitr::knit_print(TableSurvTLL)
 
 ```
 
-The overall survival for surgical cases in this cohort are illustrated in @fig-survtll and summarised in @tbl-survTLL , with 60% survival for revision cases occurring at \~ 2.5 years, while for primary cases this occurred \~ 13 years.
+Primary cases show strong procedure durability, with 60% survival reached at approximately 13 years (@fig-survtll, @tbl-survTLL). Revision cases fare considerably worse, with 60% survival at approximately 2.5 years. Confidence intervals are wide at longer timepoints due to smaller at-risk numbers.
 
-## GMRS-MRH
+### What complications and reoperations were recorded?
 
-The surgical cases containing Stryker components are tagged in an additional field. For the purposes of this report, the label Hardware contains the first instance in the text field of GMRS or MRH. There are a number of cases where both components have been used that is not reflected in the data below (see specific sponsor reports).
+```{r}
+#| label: tbl-complic-tll
+#| tbl-cap: "Complications and reoperations in the Tumour Lower Limb cohort"
+
+tbl_summary(
+  ComplicWide |>
+    dplyr::filter(RegistryCohortName == "TumourLowerLimb") |>
+    dplyr::select(
+      AnyComplication, AnySurgical,
+      InfectionDeep, InfectionSuperficial, InfectionSyst,
+      Wound, Thrombosis, Neurological, Dislocation,
+      Loosening, Hardware, Fracture,
+      TumourLocal, TumourSystemic,
+      Reoperation, ImplantRemoval, Amputation, Mortality, Other
+    ) |> dplyr::mutate(
+  across(everything(), ~factor(.x, levels = c("No", "Yes")))
+),
+  label = list(
+    AnyComplication      ~ "Any complication detected",
+    AnySurgical          ~ "Required surgical management",
+    InfectionDeep        ~ "Deep / periprosthetic infection",
+    InfectionSuperficial ~ "Superficial infection",
+    InfectionSyst        ~ "Systemic infection",
+    Wound                ~ "Wound complication",
+    Thrombosis           ~ "Thrombotic event",
+    Neurological         ~ "Neurological complication",
+    Dislocation          ~ "Instability / dislocation",
+    Loosening            ~ "Component loosening",
+    Hardware             ~ "Hardware issue",
+    Fracture             ~ "Fracture",
+    TumourLocal          ~ "Local tumour event",
+    TumourSystemic       ~ "Systemic tumour event",
+    Reoperation          ~ "Unplanned reoperation",
+    ImplantRemoval       ~ "Implant removal",
+    Amputation           ~ "Amputation",
+    Mortality            ~ "Mortality",
+    Other                ~ "Other"
+  ),
+  type    = list(everything() ~ "dichotomous"),
+  value   = list(everything() ~ "Yes"),
+  missing = "no"
+) |>
+  bold_labels()
+```
+
+### How did patients report their function?
+
+```{r}
+#| label: tbl-proms-tll
+#| tbl-cap: "Patient-reported outcomes by timepoint: Tumour Lower Limb"
+
+tll_timepoints <- c("Preop", "3months", "6months", "12months", "24months", "60months", "120months")
+
+tll_vr12 <- PROMVR12 |>
+  dplyr::filter(RegistryCohortName == "TumourLowerLimb") 
+
+tll_bpi <- PROMBPI |>
+  dplyr::filter(RegistryCohortName == "TumourLowerLimb")
+
+tll_msts <- PROMMSTS |>
+  dplyr::filter(RegistryCohortName == "TumourLowerLimb")
+
+bind_rows(
+  build_prom_table(tll_vr12, VR12PCS, "Physical Component", tll_timepoints),
+  build_prom_table(tll_vr12, VR12MCS, "Mental Component", tll_timepoints),
+  build_prom_table(tll_bpi, BPISFSeverityScore, "Pain Severity", tll_timepoints),
+  build_prom_table(tll_msts, MSTSLower_Total, "MSTS", tll_timepoints)
+) |>
+  gt::gt(groupname_col = "Score", rowname_col = "TimePoint") |>
+  gt::sub_missing(missing_text = "—") |>
+  gt::tab_options(
+    row_group.font.weight = "bold",
+    row_group.padding     = gt::px(6)
+  ) |>
+  gt::tab_footnote(
+    footnote  = "Median (Q1, Q3), n = non-missing observations",
+    locations = gt::cells_title()
+  )
+```
+
+Direct comparison of pain severity between primary and revision cases is limited by small numbers (@tbl-proms-tll). For primary cases, reported pain levels remain relatively low across all timepoints up to 10 years, which is encouraging given the extent of surgery involved.
+
+## GMRS-MRH (Stryker Components)
+
+This subsection covers all surgical cases across cohorts in which Stryker GMRS or MRH components were used. Cases where both components were implanted are captured in the sponsor-specific reports rather than here. The General cohort within this group includes complex primary arthroplasties for knee deformity with concurrent osteoarthritis.
+
+::: {.callout-tip title="Key findings"}
+- 70% of primary cases remain free of procedure failure at approximately 10 years; for revision cases this threshold is reached at approximately 5 years
+- Physical health (VR12) remains relatively stable across timepoints for the Reintervention TKA group; the Tumour Lower Limb group shows a more variable recovery from 6 months onward
+- Musculoskeletal function (MSTS) differs between primary and revision cases in the Tumour Lower Limb group, though the cross-sectional nature of the data limits longitudinal interpretation
+- PROMs capture rates and eligible numbers by surgical usage type are summarised in the registry operations section below
+:::
+
+### Who were these patients?
 
 ```{r}
 #| label: tbl-gmrs-demographics
@@ -1173,7 +1704,8 @@ TableGMRSdemo <- gtsummary::tbl_summary(
   Snapshot |> dplyr::filter(
     stringr::str_detect(str_to_lower(Hardware), "gmrs|mrh"),
     RegistryCohortName != "TumourUpperLimb",
-    Surgeon == "RB"
+    Planned != "Yes"
+    #Surgeon == "RB"
   ) |> dplyr::select(
     RegistryCohortName,
     TreatmentType,
@@ -1198,7 +1730,7 @@ TableGMRSdemo <- gtsummary::tbl_summary(
 knitr::knit_print(TableGMRSdemo)
 ```
 
-The General cohort included in @tbl-gmrs-demographics include complex primary arthroplasties for deformity concomitant with osteoarthritis of the knee that have received the components of interest.
+### How did the procedure hold up?
 
 ```{r}
 #| label: survival-prep-gmrs
@@ -1208,9 +1740,7 @@ SnapshotGMRS <- Snapshot |> dplyr::filter(
   SurgicalTreatment2 == "Surgical",
   Planned != "Yes",
   Surgeon == "RB"
-) 
-
-SnapshotGMRS2 <- SnapshotGMRS |> dplyr::mutate(
+) |> dplyr::mutate(
   Status = if_else(
     TreatmentStatus == "Failed",
     1,
@@ -1231,7 +1761,7 @@ SnapshotGMRS2 <- SnapshotGMRS |> dplyr::mutate(
 
 
 FigureSurvGMRS <- survfit2(Surv(Duration, Status) ~ TreatmentType2,
-                        data = SnapshotGMRS2
+                        data = SnapshotGMRS
                         ) |> ggsurvfit(linewidth = 1) +
   add_confidence_interval() +
   add_risktable() +
@@ -1249,7 +1779,7 @@ knitr::knit_print(FigureSurvGMRS)
 
 TableSurvGMRS <- tbl_survfit(
   survfit2(Surv(Duration, Status) ~ TreatmentType2, 
-           data = SnapshotGMRS2),
+           data = SnapshotGMRS),
   times = c(1,2,5,10),
   label_header = "**{time} Years**",
   label = "Procedure Survival",
@@ -1260,147 +1790,107 @@ knitr::knit_print(TableSurvGMRS)
 
 ```
 
-The overall survival for surgical cases in this cohort are illustrated in @fig-survgmrs and summarised in @tbl-survgmrs , with 70% survival for revision cases occurring at \~ 5 years, while for primary cases this occurred \~ 10 years.
+Approximately 70% of primary cases remain free of procedure failure at 10 years (@fig-survgmrs, @tbl-survgmrs). Revision cases show substantially reduced durability, with 70% survival at approximately 5 years. As with other cohorts, confidence intervals widen considerably at longer timepoints.
+
+### What complications and reoperations were recorded?
 
 ```{r}
-#| label: fig-vr122
-#| fig-cap: "Summary of VR12 by Timepoint"
+#| label: tbl-complic-gmrs
+#| tbl-cap: "Complications and reoperations in the GMRS cohort"
 
-#preop_position <- which(levels(PROMQDASH$TimePoint) == "Preop")
-
-PROMVR122 <- left_join(
-  PROMVR12,
-  SnapshotGMRS |> dplyr::select(
-    TreatmentID,
-    Hardware,
-    TreatmentType2
+tbl_summary(
+  ComplicWide |>
+    dplyr::filter(stringr::str_detect(str_to_lower(AnalysisLabel),"gmrs|mrh") & stringr::str_detect(str_to_lower(AnalysisLabel),"plan", negate = TRUE)) |>
+    dplyr::select(
+      AnyComplication, AnySurgical,
+      InfectionDeep, InfectionSuperficial, InfectionSyst,
+      Wound, Thrombosis, Neurological, Dislocation,
+      Loosening, Hardware, Fracture,
+      TumourLocal, TumourSystemic,
+      Reoperation, ImplantRemoval, Amputation, Mortality, Other
+    ) |> dplyr::mutate(
+  across(everything(), ~factor(.x, levels = c("No", "Yes")))
+),
+  label = list(
+    AnyComplication      ~ "Any complication detected",
+    AnySurgical          ~ "Required surgical management",
+    InfectionDeep        ~ "Deep / periprosthetic infection",
+    InfectionSuperficial ~ "Superficial infection",
+    InfectionSyst        ~ "Systemic infection",
+    Wound                ~ "Wound complication",
+    Thrombosis           ~ "Thrombotic event",
+    Neurological         ~ "Neurological complication",
+    Dislocation          ~ "Instability / dislocation",
+    Loosening            ~ "Component loosening",
+    Hardware             ~ "Hardware issue",
+    Fracture             ~ "Fracture",
+    TumourLocal          ~ "Local tumour event",
+    TumourSystemic       ~ "Systemic tumour event",
+    Reoperation          ~ "Unplanned reoperation",
+    ImplantRemoval       ~ "Implant removal",
+    Amputation           ~ "Amputation",
+    Mortality            ~ "Mortality",
+    Other                ~ "Other"
   ),
-   by = "TreatmentID"
-) |> filter(
-  Hardware == "gmrs" | Hardware == "mrh"
-)
+  type    = list(everything() ~ "dichotomous"),
+  value   = list(everything() ~ "Yes"),
+  missing = "no"
+) |>
+  bold_labels()
+```
 
-FigureVR122 <- PROMVR122 |> filter(
-  # RegistryCohortName != "ReinterventionTHA"
-  ) |> ggplot(aes(y = VR12PCS, x = TimePoint, fill = TreatmentType2, color = TreatmentType2)) +
-  stat_halfeye(
-    alpha = 0.5,  # Transparency for overlap visibility
-    position = "identity",  # Overlay the distributions
-    na.rm = TRUE,
-    scale = 0.9  # Slightly scale down to avoid too much overlap
-  ) +
-  # Add appropriate scale colors "Surgery recommended" = "darkred"
-  scale_fill_manual(values = c(
-    "Primary" = "steelblue", 
-    "Revision" = "darkred"
-    )
-    ) +
-  scale_color_manual(values = c(
-    "Primary" = "steelblue", 
-    "Revision" = "darkred"
-    )
-    ) +
-  labs(
-    y = "MSTSLowerTotal",
-    x = "Time Point",
-    fill = "Treatment Type",
-    color = "Treatment Type"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.position = "top",
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  ) + facet_wrap(
-    ~RegistryCohortName, ncol = 2
+### How did patients report their function?
+
+```{r}
+#| label: tbl-proms-gmrs
+#| tbl-cap: "Patient-reported outcomes by timepoint: GMRS-MRH"
+
+gmrs_timepoints <- c("Preop", "3months", "6months", "12months", "24months", "60months", "120months")
+
+gmrs_vr12 <- PROMVR12 |>
+  dplyr::filter(stringr::str_detect(str_to_lower(AnalysisLabel),"gmrs|mrh") & stringr::str_detect(str_to_lower(AnalysisLabel),"plan", negate = TRUE)) 
+
+gmrs_koos12 <- PROMKOOS12 |>
+  dplyr::filter(stringr::str_detect(str_to_lower(AnalysisLabel),"gmrs|mrh") & stringr::str_detect(str_to_lower(AnalysisLabel),"plan", negate = TRUE)) 
+
+gmrs_hoos12 <- PROMHOOS12 |>
+  dplyr::filter(stringr::str_detect(str_to_lower(AnalysisLabel),"gmrs|mrh") & stringr::str_detect(str_to_lower(AnalysisLabel),"plan", negate = TRUE)) 
+
+gmrs_bpi <- PROMBPI |>
+  dplyr::filter(stringr::str_detect(str_to_lower(AnalysisLabel),"gmrs|mrh") & stringr::str_detect(str_to_lower(AnalysisLabel),"plan", negate = TRUE)) 
+
+gmrs_msts <- PROMMSTS |>
+  dplyr::filter(stringr::str_detect(str_to_lower(AnalysisLabel),"gmrs|mrh") & stringr::str_detect(str_to_lower(AnalysisLabel),"plan", negate = TRUE))
+
+bind_rows(
+  build_prom_table(gmrs_vr12, VR12PCS, "Physical Component", gmrs_timepoints),
+  build_prom_table(gmrs_vr12, VR12MCS, "Mental Component", gmrs_timepoints),
+  build_prom_table(gmrs_koos12, KOOS12_Summary_TotalScore, "KOOS TOtal", gmrs_timepoints),
+  build_prom_table(gmrs_hoos12, HOOS12_Summary_TotalScore, "HOOS TOtal", gmrs_timepoints),
+  build_prom_table(gmrs_bpi, BPISFSeverityScore, "Pain Severity", gmrs_timepoints),
+  build_prom_table(gmrs_msts, MSTSLower_Total, "MSTS", gmrs_timepoints)
+) |>
+  gt::gt(groupname_col = "Score", rowname_col = "TimePoint") |>
+  gt::sub_missing(missing_text = "—") |>
+  gt::tab_options(
+    row_group.font.weight = "bold",
+    row_group.padding     = gt::px(6)
+  ) |>
+  gt::tab_footnote(
+    footnote  = "Median (Q1, Q3), n = non-missing observations",
+    locations = gt::cells_title()
   )
 
-knitr::knit_print(FigureVR122)
-```
-
-The VR12 Physical component data (@fig-vr122) remain difficult to interpret due to the low sample sizes and cross sectional nature of the data. Initial observations identify relative stability across timepoints for ReinterventionTKA, while TumourLowerLimb displays a more complex pattern of recovery from 6 months onwards.
-
-```{r}
-#| label: fig-msts2
-#| fig-cap: "Summary of MSTS by Timepoint for GMRS | MRH cases"
-
-#preop_position <- which(levels(PROMQDASH$TimePoint) == "Preop")
-
-PROMMSTS2 <- left_join(
-  PROMMSTS,
-  SnapshotGMRS |> dplyr::select(
-    TreatmentID,
-    Hardware,
-    TreatmentType2,
-    Planned
-  ),
-   by = "TreatmentID"
-) |> filter(
-  !is.na(Hardware)
-)
-
-FigureMSTS2 <- PROMMSTS2 |> filter(
-  Hardware == "gmrs" | Hardware == "MRH",
-  Planned != "Yes",
-  RegistryCohortName == "ReinterventionTKA" | RegistryCohortName == "TumourLowerLimb",
-  TimePoint != "Preop"
-  ) |> ggplot(aes(y = MSTSLowerTotal, x = TimePoint, fill = TreatmentType2, color = TreatmentType2)) +
-  stat_halfeye(
-    alpha = 0.5,  # Transparency for overlap visibility
-    position = "identity",  # Overlay the distributions
-    na.rm = TRUE,
-    scale = 0.9  # Slightly scale down to avoid too much overlap
-  ) +
-  # Add appropriate scale colors "Surgery recommended" = "darkred"
-  scale_fill_manual(values = c(
-    "Primary" = "steelblue", 
-    "Revision" = "darkred"
-    )
-    ) +
-  scale_color_manual(values = c(
-    "Primary" = "steelblue", 
-    "Revision" = "darkred"
-    )
-    ) +
-  labs(
-    y = "MSTSLowerTotal",
-    x = "Time Point",
-    fill = "Treatment Type",
-    color = "Treatment Type"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.position = "top",
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  ) + facet_wrap(
-    ~RegistryCohortName, ncol = 2
-  )
-
-knitr::knit_print(FigureMSTS2)
-```
-
-Similarly, the cross-sectional nature of the MSTS data for this subgroup may be misleading (@fig-msts2), however differences are notable within the TumourLowerLimb cohort between primary and revision cases.
-
-```{r}
-#| eval: false
-
-# Why is TumourPelvis Blank?
-
-SnapshotTP <- Snapshot |>  dplyr::filter(
-  RegistryCohortName == "TumourPelvis",
-  Hardware == "gmrs",
-  Planned != "Yes"
-)
-
-
-# There are 9 cases, 3 ongoing and 3 prospective (2 ongoing)
 
 ```
 
-### PROMs Capture
+Physical health scores remain difficult to interpret at this stage due to small, cross-sectional samples. The Reintervention TKA group shows relative stability across timepoints, while the Tumour Lower Limb group shows a more variable pattern from 6 months onwards — consistent with the more complex recovery trajectory expected after limb-salvage surgery.
 
-Target numbers retrieved from [Synopsis](https://docs.google.com/document/d/1u2V1-J337kgyolVJxOBVcHWOvEHkMGrmdLkX4it4mh8/edit)
+Musculoskeletal function scores for the GMRS-MRH subgroup (@tbl-proms-gmrs) are limited by small cross-sectional samples. Within the Tumour Lower Limb cohort, differences between primary and revision cases are apparent even with the available data, with revision cases showing lower scores at most timepoints.
+
+### PROMs Capture Progress Against Targets
+
+The table below tracks how many patients are eligible and how many have returned questionnaires at each follow-up timepoint, broken down by surgical usage category. Target case numbers are drawn from the study [Synopsis](https://docs.google.com/document/d/1u2V1-J337kgyolVJxOBVcHWOvEHkMGrmdLkX4it4mh8/edit).
 
 ::: {#synopsis-targets}
 Complex primary TKA: 67 cases
@@ -1420,46 +1910,7 @@ Femoral diaphyseal defect reconstruction: As available
 
 ```{r}
 
-
-PROMKOOS12 <- Snapshot |> dplyr::select(
-  TreatmentID,
-  starts_with("KOOS12_Summary"),
-  starts_with("EligibleAt"),
-  -EligibleAtIntraop
-) |> rename_with(
-  ~gsub("KOOS12_Summary_TotalScore","KOOS12SummaryTotal",.x, fixed = TRUE)
-) |>  rename_with(
-  ~gsub("Atx","At_",.x, fixed = TRUE)
-) |> rename(
-  EligibleAt_Preop = "EligibleAtPreop"
-) |> pivot_longer(
-  cols = !TreatmentID,
-  names_to = c(".value","TimePoint"),
-  names_sep = "_",
-  values_drop_na = TRUE
-) |> mutate(
-  TimePoint = factor(TimePoint, levels = c("Preop","3months","6months","12months","24months", "60months", "120months"), ordered = TRUE, exclude = NA),
-  KOOS12SummaryTotal = as.numeric(KOOS12SummaryTotal)
-) |> dplyr::filter(
-  !is.na(TimePoint)
-) |> left_join(
-  Snapshot |> dplyr::select(
-    TreatmentID,
-    SurgicalTreatment2,
-    TreatmentType,
-    TreatmentStatus
-  ),
-  by = "TreatmentID"
-) |> unite(
-    "TimePointID",
-    c("TreatmentID","TimePoint"),
-    sep = ".",
-    na.rm = FALSE,
-    remove = FALSE
-    )
-
-
-SnapshotGMRSPROM <- SnapshotGMRS2 |> dplyr::select(
+SnapshotGMRSPROM <- SnapshotGMRS |> dplyr::select(
   TreatmentID,
   TreatmentType,
   TreatmentActivity,
@@ -1503,19 +1954,26 @@ SnapshotGMRSPROM <- SnapshotGMRS2 |> dplyr::select(
     na.rm = FALSE,
     remove = FALSE
     ) |> left_join(
-    PROMMSTS |> dplyr::select(TimePointID,MSTSLowerTotal),
+      PROMVR12 |> dplyr::select(TimePointID,VR12PCS),
+      by = "TimePointID"
+    ) |> left_join(
+    PROMMSTS |> dplyr::select(TimePointID,MSTSLower_Total),
     by = "TimePointID"
   ) |> left_join(
-    PROMHOOS12 |> dplyr::select(TimePointID,HOOS12SummaryTotal),
+    PROMHOOS12 |> dplyr::select(TimePointID,HOOS12_Summary_TotalScore),
     by = "TimePointID"
   ) |> left_join(
-    PROMKOOS12 |> dplyr::select(TimePointID,KOOS12SummaryTotal),
+    PROMKOOS12 |> dplyr::select(TimePointID,KOOS12_Summary_TotalScore),
     by = "TimePointID"
-  ) |> naniar::add_shadow(MSTSLowerTotal,HOOS12SummaryTotal,KOOS12SummaryTotal)
+  ) |> left_join(
+    PROMBPI |> dplyr::select(TimePointID,BPISFSeverityScore),
+    by = "TimePointID"
+  ) |> naniar::add_shadow(VR12PCS,HOOS12_Summary_TotalScore,KOOS12_Summary_TotalScore,BPISFSeverityScore,MSTSLower_Total)
+
+
+
 
 ```
-
-
 
 ```{r}
 
@@ -1526,7 +1984,7 @@ eligible_summary <- SnapshotGMRSPROM |>
   summarise(
     n_eligible = sum(Eligibility == "Yes", na.rm = TRUE),
     .by = c(TimePoint, Usage)
-  )
+  ) |> arrange(TimePoint)
 
 # Main body: n_eligible per TimePoint x Usage
 main_table <- eligible_summary |>
@@ -1569,27 +2027,35 @@ footer_active <- SnapshotGMRSPROM |>
 
 # Bind and render
 bind_rows(main_table, footer_total, footer_active) |>
-  knitr::kable(
-    caption = "Summary of PROMs Capture by Timepoint for GMRS | MRH cases"
-  )
+  gt::gt(rowname_col = " ") |>
+  gt::tab_header(
+    title = "Summary of PROMs Eligibility by Timepoint for GMRS | MRH cases"
+  ) |>
+  gt::tab_style(
+    style = gt::cell_text(weight = "bold"),
+    locations = gt::cells_stub(rows = c("N Cases (Total)", "N Cases (Active)"))
+  ) |>
+  gt::opt_stylize(style = 1) |>
+  gt::opt_table_font(font = gt::google_font("Inter"))
 
 ```
 
-
 ```{r}
-#| label: tbl-promcapture
+#| label: tbl-promcapture1
 #| tbl-cap: "Summary of PROMs Capture by Timepoint for GMRS | MRH cases"
 # N returned per TimePoint x Usage (any one PROM returned)
 returned_summary <- SnapshotGMRSPROM |>
   mutate(
-    returned = MSTSLowerTotal_NA == "!NA" |
-               HOOS12SummaryTotal_NA == "!NA" |
-               KOOS12SummaryTotal_NA == "!NA"
+    returned = VR12PCS_NA == "!NA" |
+               MSTSLower_Total_NA == "!NA" |
+               BPISFSeverityScore_NA == "!NA" |
+               HOOS12_Summary_TotalScore_NA == "!NA" |
+               KOOS12_Summary_TotalScore_NA == "!NA"
   ) |>
   summarise(
     n_returned = sum(returned, na.rm = TRUE),
     .by = c(TimePoint, Usage)
-  )
+  ) |> arrange(TimePoint)
 
 # Join to eligible counts to calculate percentage
 returned_table <- returned_summary |>
@@ -1610,952 +2076,263 @@ returned_table <- returned_summary |>
 
 # Render
 returned_table |>
-  knitr::kable(
-    caption = "Summary of Returned PROMs by Timepoint for GMRS | MRH cases"
-  )
+  gt::gt(rowname_col = " ") |>
+  gt::tab_header(
+    title = "Summary of Returned PROMs by Timepoint for GMRS | MRH cases"
+  ) |>
+  gt::opt_stylize(style = 1) |>
+  gt::opt_table_font(font = gt::google_font("Inter"))
 ```
 
-
-
-
-
-
-
+### Generate Initial List for Review
 
 
 ```{r}
-#| label: tbl-promcapture
-#| tbl-cap: "Summary of PROMs Capture by Timepoint for GMRS | MRH cases"
-
-
-TableEligible <- gtsummary::tbl_summary(
-  SnapshotGMRSPROM,
-  include = -(c(TreatmentID,TimePointID, UsageComponent,TreatmentType,DiagnosisRawPrelim,MSTSLowerTotal,HOOS12SummaryTotal,KOOS12SummaryTotal)),
-by = "Usage",
-label = list(
-  MSTSLowerTotal_NA = "MSTS Captured",
-  HOOS12SummaryTotal_NA = "HOOS12 Captured",
-  KOOS12SummaryTotal_NA = "KOOS12 Captured"
-),
-type = list(
-  MSTSLowerTotal_NA = "dichotomous",
-  HOOS12SummaryTotal_NA = "dichotomous",
-  KOOS12SummaryTotal_NA = "dichotomous"
-),
-value = list(
-  MSTSLowerTotal_NA = "!NA",
-  HOOS12SummaryTotal_NA = "!NA",
-  KOOS12SummaryTotal_NA = "!NA"
-),
-missing = "no"
-) |> add_overall()
-
-
-knitr::knit_print(TableEligible)
-
-
-
-```
-
-```{r}
-#| label: eligible-save
-#| eval: false
-
-
-
-    TableEligible_gt <- TableEligible |> gtsummary::as_gt()
-
-gt::gtsave(
-      data = TableEligible_gt,
-      filename = "GMRS_Eligible.png"
-    )
-
-```
-
-```{r}
-#| label: tbl-initialcapture
-#| tbl-cap: "Summary of Captured PROMs by Type"
-#| eval: false
-
-TableCapture1 <- gtsummary::tbl_summary(
-  SnapshotGMRSPROM |> filter(
-    Usage == "ComplexPrimaryTKA"
-  ),
-  include = c(
-    TimePoint,
-  MSTSLowerTotal_NA,
-  HOOS12SummaryTotal_NA,
-  KOOS12SummaryTotal_NA
-    ),
-  label = list(
-  MSTSLowerTotal_NA = "MSTS Captured",
-  HOOS12SummaryTotal_NA = "HOOS12 Captured",
-  KOOS12SummaryTotal_NA = "KOOS12 Captured"
-),
-type = list(
-  MSTSLowerTotal_NA = "dichotomous",
-  HOOS12SummaryTotal_NA = "dichotomous",
-  KOOS12SummaryTotal_NA = "dichotomous"
-),
-value = list(
-  MSTSLowerTotal_NA = "!NA",
-  HOOS12SummaryTotal_NA = "!NA",
-  KOOS12SummaryTotal_NA = "!NA"
-),
-missing = "no",
-by = "TimePoint"
-)
-
-
-knitr::knit_print(TableCapture1)
-```
-
-```{r}
-#| label: generate-summary-func
-
-generate_usage_summaries <- function(data) {
-  # Get distinct usage values
-  usage_terms <- data |> 
-    distinct(Usage) |> 
-    pull(Usage)
-  
-  # Create summary tables for each usage term
-  summary_tables <- map(usage_terms, \(usage_term) {
-    epoxy("Creating summary table for Usage: {usage_term}")
-    
-    gtsummary::tbl_summary(
-      data |> filter(Usage == usage_term),
-      include = c(
-        TimePoint,
-        MSTSLowerTotal_NA,
-        HOOS12SummaryTotal_NA,
-        KOOS12SummaryTotal_NA
-      ),
-      label = list(
-        MSTSLowerTotal_NA = "MSTS Captured",
-        HOOS12SummaryTotal_NA = "HOOS12 Captured",
-        KOOS12SummaryTotal_NA = "KOOS12 Captured"
-      ),
-      type = list(
-        MSTSLowerTotal_NA = "dichotomous",
-        HOOS12SummaryTotal_NA = "dichotomous",
-        KOOS12SummaryTotal_NA = "dichotomous"
-      ),
-      value = list(
-        MSTSLowerTotal_NA = "!NA",
-        HOOS12SummaryTotal_NA = "!NA",
-        KOOS12SummaryTotal_NA = "!NA"
-      ),
-      missing = "no",
-      by = "TimePoint"
-    ) |> 
-    modify_header(all_stat_cols() ~ "**{level}**")
-  })
-  
-  # Name the list elements with usage terms
-  names(summary_tables) <- usage_terms
-  
-  # Stack the tables using tbl_stack with quiet = TRUE to suppress header messages
-  stacked_table <- tbl_stack(summary_tables, group_header = names(summary_tables), quiet = TRUE)
-  
-  return(stacked_table)
-}
-
-
-```
-
-```{r}
-#| label: tbl-capture-stack
-#| tbl-cap: "Summary of PROMs capture for GMRS components per hardware category over timepoints"
-
-stacked_summary <- generate_usage_summaries(SnapshotGMRSPROM)
-
-knitr::knit_print(stacked_summary)
-```
-
-```{r}
-#| label: summary-save
-#| eval: false
-
-
-
-    Stack_summary_gt <- stacked_summary |> gtsummary::as_gt()
-
-gt::gtsave(
-      data = Stack_summary_gt,
-      filename = "GMRS_Capture.png"
-    )
-
-```
-
-### PROMs Export
-
-```{r}
-
-#retrieve product details
-
-# Authenticate for sheets using the same token
-gs4_auth(token = drive_token())
-
-ProductUsage<- read_sheet("https://docs.google.com/spreadsheets/d/1e_rIjH1MQ5BVnxd8ziAiWpT-GxhN9SOlSh5ORtL4rRQ/edit",
-                          sheet = "RB_usage",
-                          col_names = TRUE,
-                          col_types = "Dcci")
-
-ProductTable <- read_sheet("https://docs.google.com/spreadsheets/d/1e_rIjH1MQ5BVnxd8ziAiWpT-GxhN9SOlSh5ORtL4rRQ/edit",
-                          sheet = "Items",
-                          col_names = TRUE,
-                          col_types = "cc")
-
-
-
-
-```
-
-\
-
-Needs to be exported in the following column format;
-
--   PatientID
-
--   TreatmentID
-
--   RegistryCohortName
-
--   PROMSelect
-
--   Eligible2year
-
--   Eligible5year
-
--   Eligible10year
-
--   Score 2\|5\|10yr
-
--   MortalityStatus
-
--   ProductNum1\|2\|3\|4
-
--   TreatmentType (PrimaryRevision)
-
--   GMRSUsage (ProxFemur, ProxTib, etc)
-
-PivotLonger SnapshotGMRSPROM (collapse questionnaire columns into multiple rows) and then PivotWider (Splitout timepoint column rows into multiple columns for the same score row)
-
-```{r}
-
-GMRSExport <- SnapshotGMRS2 |> dplyr::select(
+GMRSExport <- Snapshot |> dplyr::filter(
+  stringr::str_detect(str_to_lower(Hardware), "gmrs|mrh"),
+    RegistryCohortName != "TumourUpperLimb",
+    Planned != "Yes"
+) |> dplyr::select(
   TreatmentID,
-  RegistryCohortName,
-  starts_with("Eligible"),
-  TreatmentType,
+  CombID,
+  AgeAtInitialExam,
+  Surgeon,
+  Provider,
   DateTreatment,
-  DiagnosisRawPrelim,
   AffectedSide,
-  TreatmentStatusNotes,
+  RegistryStatus,
   RegistryStatusNotes,
-  (contains("MSTSLower")|contains("KOOS12_Summary")|contains("HOOS12_Summary")) & contains("Total"),
-  contains("VR12PCS")
-) |> mutate(
-  across(starts_with("Eligible"), ~tidyr::replace_na(.x, "No")),
-  Mortality = if_else(
-    stringr::str_detect(str_to_lower(TreatmentStatusNotes),"deceas") | stringr::str_detect(str_to_lower(RegistryStatusNotes),"deceas|mortality"),
-    "Yes",
-    "No"
-  ),
-  TreatmentType2 = if_else(
-    str_detect(TreatmentType,"Revision"),
-    "Revision",
-    "Primary"
-  ),
-  Mortality = replace_na(Mortality,"No"),
-  PROMSelect = case_when(
-    RegistryCohortName == "General" ~ "VR12PCS",
-    RegistryCohortName == "TumourLowerLimb" ~ "MSTSLowerTotal",
-    RegistryCohortName == "ReinterventionTKA" ~ "KOOS12SummaryTotalScore",
-    RegistryCohortName == "ReinterventionTHA" ~ "HOOS12SummaryTotalScore",
-    RegistryCohortName == "TumourPelvis" ~ "MSTSLowerTotal"
-  ),
-  DateTreatment = lubridate::ymd(DateTreatment)
-  ) |> relocate(
-    Mortality,
-    .after = RegistryStatusNotes
-  ) |> relocate(
-    EligibleAtx12months,
-    .after = EligibleAtx6months
-  )|> rename_with(
-    ~ gsub("_", "", .x, fixed = TRUE)
-  ) |> filter(
-    if_any(c(EligibleAtx12months, EligibleAtx24months, EligibleAtx60months,EligibleAtx120months), ~.x == "Yes")
-  ) |> dplyr::select(
-    -(c(
-      TreatmentStatusNotes,
-      RegistryStatusNotes,
-      ends_with("3months"),
-      ends_with("6months"),
-      ends_with("Intraop"),
-      ends_with("Preop")
-    )
-    )
-  )
+  DateRegistryStatus,
+  TreatmentType2,
+  Retrospective,
+  TreatmentStatus,
+  TreatmentStatusNotes,
+  DateStatusChange,
+  DiagnosisRawFinal,
+  DiagnosisRawPrelim,
+  RegistryCohortName,
+  AnalysisLabel,
+  SurgicalTreatment2,
+  Hardware,
+  starts_with("Eligible"),
+) 
 
-
+ComplicGMRS <- ComplicTable |> filter(
+  TreatmentID %in% GMRSExport$TreatmentID
+)
 ```
 
-```{r}
 
-GMRSExport2 <- GMRSExport |>
-  mutate(
-    Score1yr = case_when(
-      PROMSelect == "MSTSLowerTotal" ~ MSTSLowerTotal12months,
-      PROMSelect == "KOOS12SummaryTotalScore" ~ KOOS12SummaryTotalScore12months,
-      PROMSelect == "HOOS12SummaryTotalScore" ~ HOOS12SummaryTotalScore12months,
-      PROMSelect == "VR12PCS" ~ VR12PCS12months,
-      .default = NA_real_
-    ),
-    Score2yr = case_when(
-      PROMSelect == "MSTSLowerTotal" ~ MSTSLowerTotal24months,
-      PROMSelect == "KOOS12SummaryTotalScore" ~ KOOS12SummaryTotalScore24months,
-      PROMSelect == "HOOS12SummaryTotalScore" ~ HOOS12SummaryTotalScore24months,
-      PROMSelect == "VR12PCS" ~ VR12PCS24months,
-      .default = NA_real_
-    ),
-    Score5yr = case_when(
-      PROMSelect == "MSTSLowerTotal" ~ MSTSLowerTotal60months,
-      PROMSelect == "KOOS12SummaryTotalScore" ~ KOOS12SummaryTotalScore60months,
-      PROMSelect == "HOOS12SummaryTotalScore" ~ HOOS12SummaryTotalScore60months,
-      PROMSelect == "VR12PCS" ~ VR12PCS60months,
-      .default = NA_real_
-    ),
-    Score10yr = case_when(
-      PROMSelect == "MSTSLowerTotal" ~ MSTSLowerTotal120months,
-      PROMSelect == "KOOS12SummaryTotalScore" ~ KOOS12SummaryTotalScore120months,
-      PROMSelect == "HOOS12SummaryTotalScore" ~ HOOS12SummaryTotalScore120months,
-      PROMSelect == "VR12PCS" ~ VR12PCS120months,
-      .default = NA_real_
-    )
+```{r}
+#| label: write-export
+#| execute: false
+
+
+
+googlesheets4::write_sheet(GMRSExport, ss = "https://docs.google.com/spreadsheets/d/1SwFDscBu0jWhNgY6_LcFVfceDa70FXdbr3veRuDJRDY/edit", sheet = "GMRSMaster")
+
+googlesheets4::write_sheet(ComplicGMRS, ss = "https://docs.google.com/spreadsheets/d/1SwFDscBu0jWhNgY6_LcFVfceDa70FXdbr3veRuDJRDY/edit", sheet = "GMRSComplic")
+```
+
+
+
+## 3D-Printed Pelvic Implant (Ossis-ZimmerBiomet)
+
+This subsection covers all surgical cases across cohorts in which Ossis components were used.
+
+::: {.callout-tip title="Key findings"}
+- 70% of primary cases remain free of procedure failure at approximately 10 years; for revision cases this threshold is reached at approximately 5 years
+- Physical health (VR12) remains relatively stable across timepoints for the Reintervention TKA group; the Tumour Lower Limb group shows a more variable recovery from 6 months onward
+- Musculoskeletal function (MSTS) differs between primary and revision cases in the Tumour Lower Limb group, though the cross-sectional nature of the data limits longitudinal interpretation
+- PROMs capture rates and eligible numbers by surgical usage type are summarised in the registry operations section below
+:::
+
+### Who were these patients?
+
+```{r}
+#| label: tbl-3dpi-demographics
+#| tbl-cap: "Summary of demographics in 3DPI cohort"
+
+Table3dpidemo <- gtsummary::tbl_summary(
+  Snapshot |> dplyr::filter(
+    stringr::str_detect(str_to_lower(Hardware), "ossis"),
+    RegistryCohortName != "TumourUpperLimb",
+    #Surgeon == "RB",
+    Planned != "Yes",
   ) |> dplyr::select(
-    TreatmentID,
     RegistryCohortName,
     TreatmentType2,
-    DiagnosisRawPrelim,
-    DateTreatment,
-    PROMSelect,
-    EligibleAtx12months,
-    EligibleAtx24months,
-    EligibleAtx60months,
-    EligibleAtx120months,
-    Score1yr,
-    Score2yr,
-    Score5yr,
-    Score10yr,
-    Mortality
-  ) 
-
-```
-
-Add product information
-
-```{r}
-
-ProductUsage1 <- ProductUsage |> left_join(
-  ProductTable,
-  by = "Code"
-)
-
-```
-
-```{r}
-# try and left_join between treatment data and productinfo
-
-ProductUsage2 <- ProductUsage1 |> dplyr::filter(
-  DateSurgery %in% GMRSExport2$DateTreatment
-)
-
-
-```
-
-```{r}
-
-#Holly requested exact match
-
-GMRSProduct <- GMRSExport2 |> dplyr::select(
-  TreatmentID,
-  DateTreatment
-) |> left_join(
-  ProductUsage2 |> dplyr::select(DateSurgery, Code, Description),
-  join_by("DateTreatment" == "DateSurgery"),
-  relationship = "many-to-many"
-) |> group_by(
-  TreatmentID
-) |> distinct(Code, .keep_all = TRUE) |> mutate(
-  ProductN = row_number()
-) |> ungroup()
-  
-  
-  # fuzzy_left_join(
-  #   ProductUsage2 |> select(DateSurgery, Code, Description),
-  #   by = c("DateTreatment" = "DateSurgery"),
-  #   match_fun = list(function(x, y) abs(x - y) <= 5)
-
-
-```
-
-The matching on date is not perfect - need to supplement with a fuzzy match
-
-```{r}
-GMRSProductAlt <- GMRSExport2 |> 
-  select(TreatmentID, DateTreatment, DiagnosisRawPrelim) |> 
-  fuzzy_left_join(
-    ProductUsage2 |> select(DateSurgery, Code, Description),
-    by = c("DateTreatment" = "DateSurgery"),
-    match_fun = list(function(x, y) abs(x - y) <= 5)
-  ) |> mutate(
-    DateDifference = as.numeric(abs(DateTreatment - DateSurgery))
-  ) |> arrange(TreatmentID, DateTreatment, DateDifference) |> mutate(
-    Match = case_when(
-    DateDifference == 0 ~ "Match"
-  )
-  )
-```
-
-```{r}
-GMRSProduct2 <- GMRSProduct |>
-  pivot_wider(
-    id_cols = c(TreatmentID, DateTreatment),
-    names_from = ProductN,
-    values_from = Code,
-    names_prefix = "ProductNum"
-  )
-```
-
-```{r}
-
-GMRSExport3 <- left_join(
-  GMRSExport2,
-  GMRSProduct2 |> dplyr::select(
-    TreatmentID,
-    ProductNum1:ProductNum15
+    TreatmentStatus,
+    DateInitialExamination,
+    AgeAtInitialExam,
+    Sex2,
+    Retrospective
+    # EducationLevel_Preop,
+    # DiagnosisPrimary
   ),
-  by = "TreatmentID"
-) |> arrange(DateTreatment)
-
-write_xlsx(x = GMRSExport3, file = "GMRSMilestoneExp.xlsx", overwrite = TRUE)
-```
-
-# Observations \| Interpretation
-
--   PROMs feedback remains relatively sparse and should be interpreted with some caution
-
-    -   The nature of some patients undergoing multiple sequential treatments within the registry complicates both PROMs capture for these cases, as well as data preparation and analysis.
-
--   The followup of cases included in the registry remains largely cross-sectional, with few instances of serial capture of recovery
-
-    -   Long-term PROMs should be interpreted cautiously due to the risk of survivor bias
-
--   There are some noticeable trends with respect to pain (largely moderate at each timepoint) and physical function over time (linear decay for tumour lower limb) that point to the challenging recovery patients face after treatment
-
--   Procedure survival should be interpreted with some skepticism due to the competing risks of mortality and contralateral surgery which has not been accounted for in the kaplan-meier curves so far.
-
-    -   Nevertheless there are distinct patterns of survival between primary and revision presentations for all cohorts.
-
-# Recommendations
-
--   Continuing efforts to retrieve PROMs information from patients
-
--   Engage with patients regarding their results using the web-based COMPRESSOR portal.
-
--   Consider capture of intraoperative data on prospective or retrospective cases
-
--   Refine diagnosis coding within cohorts
-
--   Implement strategies to improve patient engagement at later followup timepoints
-
--   Identify additional opportunities for local/state data linkage activities to supplement outcomes tracking (complications, mortality, procedure survival)
-
-# Preparation for upgrade
-
-Deidentification for initial testing
-
-Patient and complications table has already been read in
-
-```{r}
-#| label: read-tables2
-
-
-# Authenticate for sheets using the same token
-gs4_auth(token = drive_token())
-
-
-#To match to acctData
-TreatTable <- googlesheets4::range_read(
-  ss = SheetIDs$DbSS,
-  sheet = "Treatment",
-  range = "A11:BL",
-  col_names = FALSE,
-  col_types = "DcccciDcccccccccccDDDDtccDcccDcccccicccccccccccccccccccccccccccc"
+  by = "RegistryCohortName",
+  missing = "no",
+  statistic = list(
+    DateInitialExamination ~ "{min} - {max}"
   )
+) |>
+  add_overall()
 
-Treat_Col <- googlesheets4::range_read(
-  ss = SheetIDs$DbSS,
-  sheet = "Treatment", 
-  range = "A1:BL1"
+knitr::knit_print(Table3dpidemo)
+```
+
+### How did the procedure hold up?
+
+```{r}
+#| label: survival-prep-3dpi
+
+Snapshot3DPI <- Snapshot |> dplyr::filter(
+  Hardware == "ossis",
+  SurgicalTreatment2 == "Surgical",
+  Planned != "Yes",
+  #Surgeon == "RB"
+) |> dplyr::mutate(
+  Status = if_else(
+    TreatmentStatus == "Failed",
+    1,
+    0
+  ),
+  EndDate = case_when(
+    !is.na(DateStatusChange) ~ DateStatusChange,
+    .default = coalesce(DateStatusChange, ymd(CurrentDate)),
+    ),
+  Duration = as.numeric(as.duration(interval(ymd(DateTreatment), ymd(EndDate))),"years"),
 )
 
-colnames(TreatTable) <- colnames(Treat_Col)
+```
+
+```{r}
+#| label: fig-surv3dpi
+#| fig-cap: "Survival curve for 3DPI cases by treatment type"
+
+
+FigureSurv3DPI <- survfit2(Surv(Duration, Status) ~ TreatmentType2,
+                        data = Snapshot3DPI
+                        ) |> ggsurvfit(linewidth = 1) +
+  add_confidence_interval() +
+  add_risktable() +
+  add_quantile(y_value = 0.7, color = "gray50", linewidth = 0.75) +
+  scale_ggsurvfit() +
+  coord_cartesian(ylim = c(0.2, 1))
+
+knitr::knit_print(FigureSurv3DPI)
 
 ```
 
 ```{r}
+#| label: tbl-surv3dpi
+#| tbl-cap: "Summary of 3DPI Procedure Survival"
 
-# Extract DarrenLog to retrieve lastcontact date
-# 
-DarrenTable <- googlesheets4::range_read(
-  ss = SheetIDs$DbSS,
-  sheet = "Darren Log",
-  range = "A1:H",
-  col_names = TRUE,
-  col_types = "Dccccccc"
-  )
-
-
-```
-
-Deidentify patient data
-
-```{r}
-
-library(tidyverse)
-library(digest)
-library(lubridate)
-
-# Generate Australian mobile number format from hash
-generate_au_mobile <- function(hash_value) {
-  # Extract numeric portion from hash
-  numeric_hash <- as.numeric(paste0("0x", substr(hash_value, 1, 8)))
-  
-  # Generate 8-digit number and format as 04XX XXX XXX
-  mobile_number <- (numeric_hash %% 100000000) |> 
-    str_pad(width = 8, pad = "0")
-  
-  formatted <- paste0("04", substr(mobile_number, 1, 2), " ", 
-                     substr(mobile_number, 3, 5), " ", 
-                     substr(mobile_number, 6, 8))
-  
-  return(formatted)
-}
-
-# Generate scrambled date from hash (maintains date format)
-generate_scrambled_date <- function(original_date, hash_value) {
-  # Extract numeric portion from hash
-  numeric_hash <- as.numeric(paste0("0x", substr(hash_value, 1, 8)))
-  
-  # Generate a date offset (within reasonable range: +/- 20 years)
-  days_offset <- (numeric_hash %% 14600) - 7300
-  
-  # Apply offset to original date
-  scrambled_date <- original_date + days(days_offset)
-  
-  return(scrambled_date)
-}
-
-# Scramble identifiers in a single dataframe using hash-based approach
-scramble_identifiers <- function(df, id_columns, salt = "my_salt_123") {
-  
-  result <- df
-  
-  for (col in id_columns) {
-    if (col %in% names(df)) {
-      
-      # Get unique values for this column
-      unique_values <- df |>
-        pull(!!col) |>
-        unique() |>
-        na.omit()
-      
-      # Store original class for type conversion later
-      original_class <- class(df[[col]])[1]
-      
-      # Convert to character for hashing
-      unique_values_char <- as.character(unique_values)
-      
-      # Generate hash-based scrambled values
-      hashed_values <- map_chr(
-        unique_values_char, 
-        ~ digest::digest(paste0(.x, salt, col), algo = "md5")
-      )
-      
-      # Format based on column type
-      if (col == "Phone") {
-        # Format phone numbers as Australian mobiles
-        scrambled_values <- map_chr(hashed_values, generate_au_mobile)
-      } else if (col == "DateOfBirth" && original_class == "Date") {
-        # Generate scrambled dates that maintain Date format
-        scrambled_values <- map2_dbl(unique_values, hashed_values, 
-                                      ~as.numeric(generate_scrambled_date(.x, .y)))
-        scrambled_values <- as.Date(scrambled_values, origin = "1970-01-01")
-      } else {
-        # Keep as hash for other columns
-        scrambled_values <- hashed_values
-      }
-      
-      # Create lookup table for this column
-      lookup <- tibble(
-        original = unique_values,
-        scrambled = scrambled_values
-      ) |>
-        rename(!!col := original, !!paste0(col, "_new") := scrambled)
-      
-      # Join and replace
-      result <- result |>
-        left_join(lookup, by = col) |>
-        mutate(!!col := coalesce(!!sym(paste0(col, "_new")), !!sym(col))) |>
-        select(-!!paste0(col, "_new"))
-    }
-  }
-  
-  return(result)
-}
-```
-
-```{r}
-
-PatientDeid <- scramble_identifiers(
-  df = PatientTable,
-  id_columns = c("FirstName", "LastName", "DateOfBirth", "Email", "Phone"),
-  salt = "my_secret_salt"
+TableSurv3DPI <- tbl_survfit(
+  survfit2(Surv(Duration, Status) ~ TreatmentType2, 
+           data = Snapshot3DPI),
+  times = c(1,2,5,10),
+  label_header = "**{time} Years**",
+  label = "Procedure Survival",
+  statistic = "{estimate} ({conf.low} - {conf.high})"
 )
 
-TreatDeid <- scramble_identifiers(
-  df = TreatTable,
-  id_columns = c("FirstName", "LastName"),
-  salt = "my_secret_salt"
-)
+knitr::knit_print(TableSurv3DPI)
+
 ```
 
-Retrieve lastcontact
+Approximately 80% of primary cases remain free of procedure failure at 10 years (@fig-surv3dpi, @tbl-surv3dpi). Revision cases show substantially reduced durability, with 70% survival at approximately 5 years. As with other cohorts, confidence intervals widen considerably at longer timepoints.
+
+### What complications and reoperations were recorded?
 
 ```{r}
+#| label: tbl-complic-3dpi
+#| tbl-cap: "Complications and reoperations in the 3DPI cohort"
 
-DarrenTable2 <- DarrenTable |>
-  dplyr::mutate(
-   PatientID = stringr::str_split_i(`Treatment UID`,"\\.",1)
+tbl_summary(
+  ComplicWide |>
+    dplyr::filter(stringr::str_detect(str_to_lower(AnalysisLabel),"ossis") & stringr::str_detect(str_to_lower(AnalysisLabel),"plan", negate = TRUE)) |>
+    dplyr::select(
+      AnyComplication, AnySurgical,
+      InfectionDeep, InfectionSuperficial, InfectionSyst,
+      Wound, Thrombosis, Neurological, Dislocation,
+      Loosening, Hardware, Fracture,
+      TumourLocal, TumourSystemic,
+      Reoperation, ImplantRemoval, Amputation, Mortality, Other
+    ) |> dplyr::mutate(
+  across(everything(), ~factor(.x, levels = c("No", "Yes")))
+),
+  label = list(
+    AnyComplication      ~ "Any complication detected",
+    AnySurgical          ~ "Required surgical management",
+    InfectionDeep        ~ "Deep / periprosthetic infection",
+    InfectionSuperficial ~ "Superficial infection",
+    InfectionSyst        ~ "Systemic infection",
+    Wound                ~ "Wound complication",
+    Thrombosis           ~ "Thrombotic event",
+    Neurological         ~ "Neurological complication",
+    Dislocation          ~ "Instability / dislocation",
+    Loosening            ~ "Component loosening",
+    Hardware             ~ "Hardware issue",
+    Fracture             ~ "Fracture",
+    TumourLocal          ~ "Local tumour event",
+    TumourSystemic       ~ "Systemic tumour event",
+    Reoperation          ~ "Unplanned reoperation",
+    ImplantRemoval       ~ "Implant removal",
+    Amputation           ~ "Amputation",
+    Mortality            ~ "Mortality",
+    Other                ~ "Other"
+  ),
+  type    = list(everything() ~ "dichotomous"),
+  value   = list(everything() ~ "Yes"),
+  missing = "no"
+) |>
+  bold_labels()
+```
+
+### How did patients report their function?
+
+```{r}
+#| label: tbl-proms-3dpi
+#| tbl-cap: "Patient-reported outcomes by timepoint: 3DPI"
+
+ossis_timepoints <- c("Preop", "3months", "6months", "12months", "24months", "60months", "120months")
+
+ossis_vr12 <- PROMVR12 |>
+  dplyr::filter(stringr::str_detect(str_to_lower(AnalysisLabel),"ossis") & stringr::str_detect(str_to_lower(AnalysisLabel),"plan", negate = TRUE)) 
+
+ossis_koos12 <- PROMKOOS12 |>
+  dplyr::filter(stringr::str_detect(str_to_lower(AnalysisLabel),"ossis") & stringr::str_detect(str_to_lower(AnalysisLabel),"plan", negate = TRUE)) 
+
+ossis_hoos12 <- PROMHOOS12 |>
+  dplyr::filter(stringr::str_detect(str_to_lower(AnalysisLabel),"ossis") & stringr::str_detect(str_to_lower(AnalysisLabel),"plan", negate = TRUE)) 
+
+ossis_bpi <- PROMBPI |>
+  dplyr::filter(stringr::str_detect(str_to_lower(AnalysisLabel),"ossis") & stringr::str_detect(str_to_lower(AnalysisLabel),"plan", negate = TRUE)) 
+
+ossis_msts <- PROMMSTS |>
+  dplyr::filter(stringr::str_detect(str_to_lower(AnalysisLabel),"ossis") & stringr::str_detect(str_to_lower(AnalysisLabel),"plan", negate = TRUE))
+
+bind_rows(
+  build_prom_table(ossis_vr12, VR12PCS, "Physical Component", ossis_timepoints),
+  build_prom_table(ossis_vr12, VR12MCS, "Mental Component", ossis_timepoints),
+  build_prom_table(ossis_koos12, KOOS12_Summary_TotalScore, "KOOS TOtal", ossis_timepoints),
+  build_prom_table(ossis_hoos12, HOOS12_Summary_TotalScore, "HOOS TOtal", ossis_timepoints),
+  build_prom_table(ossis_bpi, BPISFSeverityScore, "Pain Severity", ossis_timepoints),
+  build_prom_table(ossis_msts, MSTSLower_Total, "MSTS", ossis_timepoints)
+) |>
+  gt::gt(groupname_col = "Score", rowname_col = "TimePoint") |>
+  gt::sub_missing(missing_text = "—") |>
+  gt::tab_options(
+    row_group.font.weight = "bold",
+    row_group.padding     = gt::px(6)
   ) |>
-  group_by(PatientID) |> 
-  slice_max(`Time Stamp`,n = 1, with_ties = FALSE) |> 
- ungroup() |> 
-  arrange(desc(`Time Stamp`))
-  
-
-
-```
-
-Merge tables
-
-```{r}
-
-PatientTable2 <- PatientTable |> dplyr::select(
-  -(c(
-    FirstName,
-    LastName,
-    DateOfBirth,
-    Email,
-    Phone
-  )
-)
-) |> left_join(
-    DarrenTable2 |> dplyr::select(
-      PatientID,
-      `Time Stamp`
-    ),
-    by = "PatientID"
-  ) |> left_join(
-    TreatTable |> dplyr::mutate(
-      PatientID = stringr::str_split_i(TreatmentID,"\\.",1)
-    ) |> group_by(
-      PatientID
-    ) |> slice_max(
-      DateTreatmentRecordCreation,
-      with_ties = FALSE,
-      n = 1
-    ) |> dplyr::select(
-      PatientID,
-      Postcode
-    ),
-    by = "PatientID"
+  gt::tab_footnote(
+    footnote  = "Median (Q1, Q3), n = non-missing observations",
+    locations = gt::cells_title()
   )
 
-```
-
-```{r}
-# Example: Find duplicates based on columns 'col1' and 'col2'
-duplicates <- PatientTable2 |>
-  group_by(PatientID) |>
-  filter(n() > 1) |>
-  ungroup() # Ungroup for further operations
-```
-
-```{r}
-
-
-
-PatientTableNew <- bind_cols(
-  PatientTable2,
-  PatientDeid |> dplyr::select(
-    FirstName,
-    LastName,
-    DateOfBirth,
-    Email,
-    Phone
-  ))   |> rename(
-  CreationDate = "PatientCreationDate",
-  GivenNames = "FirstName",
-  PatientLatestContactDate = "Time Stamp",
-  RegistryStatusDate = "DateRegistryStatus"
-  ) |> dplyr::mutate(
-  Name = stringr::str_c(GivenNames,", ", LastName),
-  LastChangeDate = lubridate::ymd("2026-Feb-10"),
-  Sex = case_when(
-    Sex == "F" ~ "Female",
-    Sex == "M" ~ "Male",
-    .default = NA_character_
-  ),
-  DateOfDeceased = if_else(
-    stringr::str_detect(stringr::str_to_lower(RegistryStatusNotes),"decease*|mortality"),
-    RegistryStatusDate,
-    as.Date(NA)
-  ),
-  NextMessageDate = NA_character_, 
-  Reminder1Date = NA_character_,
-  Reminder2Date = NA_character_,
-  TransferBetweenProviders = NA_character_,
-  PatientID = stringr::str_c("888",PatientID)
-) 
 
 ```
 
-```{r}
-
-
-TreatTable2 <- TreatTable |> dplyr::select(
-  -(c(
-    FirstName,
-    LastName
-  )
-)
-)
-
-TreatTableNew <- bind_cols(
-  TreatTable2,
-  TreatDeid |> dplyr::select(
-    FirstName,
-    LastName
-  )
-) |> mutate(
-  Name = stringr::str_c(FirstName,", ", LastName),
-  RegistryCohortName2 = case_when(
-    stringr::str_detect(RegistryCohortName,"TumourPelvis") & (stringr::str_detect(SurgicalTreatment,"Non") | is.na(SurgicalTreatment)) ~ "PelvisTumourNS",
-    stringr::str_detect(RegistryCohortName,"TumourUpperLimb") & (stringr::str_detect(SurgicalTreatment,"Non") | is.na(SurgicalTreatment)) ~ "ULTumourLongNS",
-    stringr::str_detect(RegistryCohortName,"TumourLowerLimb") & (stringr::str_detect(SurgicalTreatment,"Non") | is.na(SurgicalTreatment)) ~ "LLTumourLongNS",
-    stringr::str_detect(RegistryCohortName,"ReinterventionTHA") & (stringr::str_detect(SurgicalTreatment,"Non") | is.na(SurgicalTreatment)) ~ "ReinterventionTHANS",
-    stringr::str_detect(RegistryCohortName,"ReinterventionTKA") & (stringr::str_detect(SurgicalTreatment,"Non") | is.na(SurgicalTreatment)) ~ "ReinterventionTKANS",
-    stringr::str_detect(RegistryCohortName,"TumourPelvis") & SurgicalTreatment == "Surgical" ~ "PelvisTumourSurg",
-    stringr::str_detect(RegistryCohortName,"TumourUpperLimb") & SurgicalTreatment == "Surgical" ~ "ULTumourLongSurg",
-    stringr::str_detect(RegistryCohortName,"TumourLowerLimb") & SurgicalTreatment == "Surgical" ~ "LLTumourLongSurg",
-    stringr::str_detect(RegistryCohortName,"ReinterventionTHA") & SurgicalTreatment == "Surgical" ~ "ReinterventionTHASurg",
-    stringr::str_detect(RegistryCohortName,"ReinterventionTKA") & SurgicalTreatment == "Surgical" ~ "ReinterventionTKASurg",
-    .default = "LLGenLongNS"
-    
-  ),
-  SurgeryRecommended = case_when(
-   stringr::str_detect(RegistryCohortName2,"NS") & stringr::str_detect(EBMAComment,"recommended") ~ "Yes",
-   stringr::str_detect(RegistryCohortName2,"NS") & (stringr::str_detect(EBMAComment,"recommended", negate = TRUE) | is.na(EBMAComment)) ~ "No",
-   SurgicalTreatment ==  "Surgical" ~ "NA",
-   .default = NA_character_
-  ),
-  PatientID = stringr::str_c("888",PatientID),
-  TreatmentID = stringr::str_c("888",TreatmentID),
-  Region = case_when(
-    stringr::str_detect(RegistryCohortName2,"Pelvis") ~ "Pelvis",
-    stringr::str_detect(RegistryCohortName2,"THA") ~ "Hip",
-    stringr::str_detect(RegistryCohortName2,"TKA") ~ "Knee",
-    stringr::str_detect(RegistryCohortName2,"UL") ~ "Upper Limb",
-    stringr::str_detect(RegistryCohortName2,"LL") ~ "Lower Limb",
-    .default = NA_character_
-  ),
-  Pre_InitialConsult = NA_character_,
-  Post_6weeks = NA_character_,
-  Post_9months = NA_character_,
-  Provider = case_when(
-    Provider == "RB" ~ "RBoyleOrtho",
-    Provider == "PS" ~ "PStalleyOrtho",
-    Provider == "MG" ~ "MGuzmanOrtho",
-    Provider == "DF" ~ "DFranksOrtho",
-    .default = NA_character_
-  ),
-  Surgeon = case_when(
-    Surgeon == "RB" ~ "RBoyleOrtho",
-    Surgeon == "PS" ~ "PStalleyOrtho",
-    Surgeon == "MG" ~ "MGuzmanOrtho",
-    Surgeon == "DF" ~ "DFranksOrtho",
-    .default = NA_character_
-  ),
-  Facilty = case_when(
-    stringr::str_detect(str_to_lower(Facility),"nsph") ~ "North Shore Private Hospital",
-    Facility == "RNSH" ~ "Royal North Shore Hospital",
-    Facility == "Lifehouse" ~ "Chris O'Brien Lifehouse",
-    Facility == "Sydney Children's Hospital" ~ "Sydney Children's Hospital",
-    Facility == "The New Childrens Hospital" ~ "Sydney Children's Hospital",
-    Facility == "Westmead Children's Hospital" ~ "Westmead Children's Hospital",
-    stringr::str_detect(Facility,"RPA|Alfred") ~ "Royal Prince Alfred",
-    Facility == "Newtown Rooms" ~ "RPA Medical Centre",
-    Facility == "Mater" ~ "Mater Misericordiae Hospital",
-    .default = NA_character_
-    
-  ),
-  # DiagnosisRawFinal = stringr::str_split_i(DiagnosisPrimary, " - ",2),
-  # DiagnosisICD10Final = stringr::str_split_i(DiagnosisPrimary, " - ",1),
-  LookerComplicationVars = NA_character_,
-  dplyr::across(
-    dplyr::contains("Date") & !dplyr::all_of("DateCurrentEndTimeWindow"),
-    ~as.character(.x)
-        )
-      ) |> relocate(
-  RegistryCohortName, .before = RegistryCohortName2
-) |> left_join(
-  DarrenTable2 |> dplyr::select(`Treatment UID`,`Time Stamp`),
-  join_by(TreatmentID == `Treatment UID`)
-) |> unite(
-  "EBMAComment2",
-  c(EBMAComment),
-  na.rm = TRUE,
-  remove = TRUE,
-  sep = ";"
-) |> dplyr::select(
-  -(c(
-    RegistryCohortName,
-    DateLatestContact
-    )
-    )
-  ) |> rename(
-  PROMsTrigger = "PROMs Trigger",
-  TimeNextAppointment = "NextAppointmentTime",
-  ProcedureForm = "Procedure",
-  RegistryCohortName = "RegistryCohortName2",
-  DateLatestContact = "Time Stamp",
-  EBMAComment = "EBMAComment2"
-) 
-
-
-
-```
-
-Do some checks
-
-```{r}
-# Identify rows in df_a that are not in df_b (based on the 'id' column)
-rows_not_in_b <- anti_join(TreatTableNew, TreatTable2, by = "TreatmentID")
-```
-
-Write to CSV
-
-```{r}
-
-readr::write_csv(
-  PatientTableNew |> dplyr::select(
-    CreationDate,
-    PatientID,
-    LastName,
-    GivenNames,
-    Name,
-    DateOfBirth,
-    Sex,
-    RegistryStatus,
-    RegistryStatusNotes,
-    RegistryStatusDate,
-    NotificationMethod,
-    NoTreatmentRecords,
-    Email,
-    Phone,
-    TrueNoTreatmentRecords,
-    Postcode,
-    LastChangeDate,
-    AlternateID,
-    DateOfDeceased,
-    NextMessageDate,
-    Reminder1Date,
-    Reminder2Date,
-    TransferBetweenProviders,
-    PatientLatestContactDate
-  ),
-  na = "",
-  "COMPRESSORPatient.csv"
-)
-
-readr::write_csv(
-  TreatTableNew |> dplyr::select(
-DateTreatmentRecordCreation,
-PatientID,
-TreatmentActivity,
-TreatmentActivityNotes,
-PROMsTrigger,
-FollowupContactAttempt,
-DateLatestContact,TreatmentID,
-LastName,
-FirstName,
-Postcode,
-Surgeon,
-Provider,
-AnalysisLabel,
-ExternalStudyTag,
-ExternalStudyStatus,
-DateExternalStudyStatus,
-DateInitialExamination,
-DateTreatment,
-DateNextAppointment,
-TimeNextAppointment,
-TreatmentStatus,
-TreatmentStatusNotes,
-DateStatusChange,
-TreatmentType,
-AffectedSide,
-DateLastChecked,
-SurgeryRecommended,
-EBMAComment,
-ProcedureName,
-Facility,
-RegistryCohortName,
-RegistryCohortID,
-Region,
-ProcedureForm,
-ComplicationForm,
-CurrentTimepoint,
-Pre_InitialConsult,
-Pre_Treatment,
-Post_6weeks,
-Post_3months,
-Post_6months,
-Post_9months,
-Post_12months,
-Post_24months,
-Post_60months,
-Post_120months,
-CurrentFormID,
-CurrentPROMLink,
-CurrentPROMStatus,
-DateCurrentEndTimeWindow,
-ConsultListPROMS,
-ConsultListAppointmentType,
-DiagnosisRawPrelim,
-DiagnosisSNOMEDPrelim,
-DiagnosisRawFinal,
-DiagnosisSNOMEDFinal,
-DiagnosisICD10Final,
-DiagnosisICD10Prelim, 
-LookerComplicationVars
-  ),
-  "COMRPESSORTreat.csv",
-na = ""
-)
-
-```
+Physical health scores remain difficult to interpret at this stage due to small, cross-sectional samples (@tbl-proms-3dpi). The Reintervention TKA group shows relative stability across timepoints, while the Tumour Lower Limb group shows a more variable pattern from 6 months onwards — consistent with the more complex recovery trajectory expected after limb-salvage surgery.
