@@ -2091,9 +2091,11 @@ returned_table |>
 GMRSExport <- Snapshot |> dplyr::filter(
   stringr::str_detect(str_to_lower(Hardware), "gmrs|mrh"),
     RegistryCohortName != "TumourUpperLimb",
-    Planned != "Yes"
+    Planned != "Yes",
+  Surgeon == "RB"
 ) |> dplyr::select(
   TreatmentID,
+  PatientID,
   CombID,
   AgeAtInitialExam,
   Surgeon,
@@ -2114,8 +2116,68 @@ GMRSExport <- Snapshot |> dplyr::filter(
   AnalysisLabel,
   SurgicalTreatment2,
   Hardware,
-  starts_with("Eligible"),
+  starts_with("Eligible")
 ) 
+
+
+GMRSIndex <- GMRSExport |> dplyr::group_by(
+  CombID
+) |> slice_min(DateTreatment) |>
+  ungroup() |> left_join(
+    PatientTable |> select(
+      PatientID,
+      FirstName,
+      LastName,
+      DateOfBirth,
+      Phone
+    ),
+    by = "PatientID") |> relocate(
+      all_of(c(
+      "PatientID",
+      "FirstName",
+      "LastName",
+      "DateOfBirth",
+      "Phone"
+      )
+      )
+    )
+
+GMRSSubseq <- Snapshot |> filter(
+  CombID %in% GMRSIndex$CombID,
+  !TreatmentID %in% GMRSIndex$TreatmentID
+) |> group_by(CombID) |> arrange(DateTreatment) |> ungroup() |> dplyr::select(
+  TreatmentID,
+  PatientID,
+  CombID,
+  AgeAtInitialExam,
+  Surgeon,
+  Provider,
+  DateTreatment,
+  AffectedSide,
+  RegistryStatus,
+  RegistryStatusNotes,
+  DateRegistryStatus,
+  TreatmentType2,
+  Retrospective,
+  TreatmentStatus,
+  TreatmentStatusNotes,
+  DateStatusChange,
+  DiagnosisRawFinal,
+  DiagnosisRawPrelim,
+  RegistryCohortName,
+  AnalysisLabel,
+  SurgicalTreatment2,
+  Hardware,
+  starts_with("Eligible")
+) |> group_by(
+  CombID
+  ) |> arrange(
+  DateTreatment
+)
+
+GMRSCheck <- GMRSIndex |> filter(
+  TreatmentStatus != "Failed"
+)
 
 ComplicGMRS <- ComplicTable |> filter(
   TreatmentID %in% GMRSExport$TreatmentID
@@ -2129,7 +2191,11 @@ ComplicGMRS <- ComplicTable |> filter(
 
 
 
-googlesheets4::write_sheet(GMRSExport, ss = "https://docs.google.com/spreadsheets/d/1SwFDscBu0jWhNgY6_LcFVfceDa70FXdbr3veRuDJRDY/edit", sheet = "GMRSMaster")
+googlesheets4::write_sheet(GMRSIndex, ss = "https://docs.google.com/spreadsheets/d/1SwFDscBu0jWhNgY6_LcFVfceDa70FXdbr3veRuDJRDY/edit", sheet = "GMRSIndex")
+
+googlesheets4::write_sheet(GMRSSubseq, ss = "https://docs.google.com/spreadsheets/d/1SwFDscBu0jWhNgY6_LcFVfceDa70FXdbr3veRuDJRDY/edit", sheet = "GMRSSubseq")
+
+googlesheets4::write_sheet(GMRSCheck, ss = "https://docs.google.com/spreadsheets/d/1SwFDscBu0jWhNgY6_LcFVfceDa70FXdbr3veRuDJRDY/edit", sheet = "GMRSCheck")
 
 googlesheets4::write_sheet(ComplicGMRS, ss = "https://docs.google.com/spreadsheets/d/1SwFDscBu0jWhNgY6_LcFVfceDa70FXdbr3veRuDJRDY/edit", sheet = "GMRSComplic")
 ```
