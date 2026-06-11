@@ -2086,7 +2086,6 @@ returned_table |>
 
 ### Generate Initial List for Review
 
-
 ```{r}
 GMRSExport <- Snapshot |> dplyr::filter(
   stringr::str_detect(str_to_lower(Hardware), "gmrs|mrh"),
@@ -2122,7 +2121,7 @@ GMRSExport <- Snapshot |> dplyr::filter(
 
 GMRSIndex <- GMRSExport |> dplyr::group_by(
   CombID
-) |> slice_min(DateTreatment) |>
+) |> slice_min(DateTreatment, n = 1, with_ties = FALSE) |>
   ungroup() |> left_join(
     PatientTable |> select(
       PatientID,
@@ -2144,46 +2143,53 @@ GMRSIndex <- GMRSExport |> dplyr::group_by(
 
 GMRSSubseq <- Snapshot |> filter(
   CombID %in% GMRSIndex$CombID,
-  !TreatmentID %in% GMRSIndex$TreatmentID
-) |> group_by(CombID) |> arrange(DateTreatment) |> ungroup() |> dplyr::select(
-  TreatmentID,
-  PatientID,
-  CombID,
-  AgeAtInitialExam,
-  Surgeon,
-  Provider,
-  DateTreatment,
-  AffectedSide,
-  RegistryStatus,
-  RegistryStatusNotes,
-  DateRegistryStatus,
-  TreatmentType2,
-  Retrospective,
-  TreatmentStatus,
-  TreatmentStatusNotes,
-  DateStatusChange,
-  DiagnosisRawFinal,
-  DiagnosisRawPrelim,
-  RegistryCohortName,
-  AnalysisLabel,
-  SurgicalTreatment2,
-  Hardware,
-  starts_with("Eligible")
-) |> group_by(
-  CombID
-  ) |> arrange(
-  DateTreatment
-)
+  ! TreatmentID %in% GMRSIndex$TreatmentID
+  ) |>
+  left_join(
+    GMRSIndex |> select(CombID, DateTreatment) |> rename(IndexDate = DateTreatment),
+    by = "CombID"
+  ) |>
+  filter(DateTreatment > IndexDate) |>
+  select(
+    TreatmentID,
+    PatientID,
+    CombID,
+    AgeAtInitialExam,
+    Surgeon,
+    Provider,
+    DateTreatment,
+    AffectedSide,
+    RegistryStatus,
+    RegistryStatusNotes,
+    DateRegistryStatus,
+    TreatmentType2,
+    Retrospective,
+    TreatmentStatus,
+    TreatmentStatusNotes,
+    DateStatusChange,
+    DiagnosisRawFinal,
+    DiagnosisRawPrelim,
+    RegistryCohortName,
+    AnalysisLabel,
+    SurgicalTreatment2,
+    Hardware,
+    starts_with("Eligible")
+  ) |>
+  group_by(CombID) |>
+  arrange(DateTreatment, .by_group = TRUE)
+
+```
+
+```{r}
 
 GMRSCheck <- GMRSIndex |> filter(
-  TreatmentStatus != "Failed"
+  TreatmentStatus == "Ongoing"
 )
 
 ComplicGMRS <- ComplicTable |> filter(
   TreatmentID %in% GMRSExport$TreatmentID
 )
 ```
-
 
 ```{r}
 #| label: write-export
@@ -2199,8 +2205,6 @@ googlesheets4::write_sheet(GMRSCheck, ss = "https://docs.google.com/spreadsheets
 
 googlesheets4::write_sheet(ComplicGMRS, ss = "https://docs.google.com/spreadsheets/d/1SwFDscBu0jWhNgY6_LcFVfceDa70FXdbr3veRuDJRDY/edit", sheet = "GMRSComplic")
 ```
-
-
 
 ## 3D-Printed Pelvic Implant (Ossis-ZimmerBiomet)
 
