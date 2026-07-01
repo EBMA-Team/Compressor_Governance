@@ -2084,7 +2084,175 @@ returned_table |>
   gt::opt_table_font(font = gt::google_font("Inter"))
 ```
 
+```{r}
+
+```
+
+```{r}
+
+# PROM Usage Summary Table Generator
+# ============================================================
+# Strategy:
+#  - TimePoint capture = combined across PROMs (TRUE if any of the
+#    three PROMs was captured for that TreatmentID at that TimePoint).
+#  - Usage is NOT constant per TreatmentID: the same TreatmentID can
+#    appear under multiple Usage tags (independent of TimePoint).
+#    -> By-Usage columns are built from distinct TreatmentID x Usage
+#       combinations, so a multi-tagged treatment correctly contributes
+#       to every Usage column it belongs to.
+#    -> The Overall column is built from distinct TreatmentID only, so
+#       a multi-tagged treatment is counted once (not once per tag).
+# ============================================================
+ 
+library(tidyverse)
+library(gtsummary)
+library(epoxy)
+library(naniar)
+ 
+# Builds an "Overall" column (from deduplicated TreatmentID-level data)
+# merged side-by-side with a by-Usage breakdown (from TreatmentID x Usage
+# level data), for a given set of variables.
+build_overall_and_by_usage <- function(overall_data, usage_data, vars, ...) {
+ 
+  tbl_overall <- gtsummary::tbl_summary(
+    overall_data,
+    include = all_of(vars),
+    missing = "no",
+    ...
+  ) |>
+    modify_header(stat_0 ~ "**Overall**, N = {N}")
+ 
+  tbl_by_usage <- gtsummary::tbl_summary(
+    usage_data,
+    include = all_of(vars),
+    by = Usage,
+    missing = "no",
+    ...
+  )
+ 
+  gtsummary::tbl_merge(
+    list(tbl_overall, tbl_by_usage),
+    tab_spanner = FALSE
+  )
+}
+ 
+generate_usage_summaries <- function(data) {
+ 
+  epoxy("Flagging PROM capture at the row level (TreatmentID x TimePoint)")
+ 
+  data_flagged <- data |>
+    mutate(
+      PROM_captured_row = (MSTSLower_Total_NA == "!NA") |
+        (HOOS12_Summary_TotalScore_NA == "!NA") |
+        (KOOS12_Summary_TotalScore_NA == "!NA")
+    )
+ 
+  epoxy("Collapsing to one row per TreatmentID (drives the Overall column)")
+ 
+  treatment_level <- data_flagged |>
+    group_by(TreatmentID) |>
+    summarise(
+      RegistryCohortName = first(RegistryCohortName),
+      Preop       = any(TimePoint == "Preop"     & PROM_captured_row),
+      `3months`   = any(TimePoint == "3months"   & PROM_captured_row),
+      `6months`   = any(TimePoint == "6months"   & PROM_captured_row),
+      `12months`  = any(TimePoint == "12months"  & PROM_captured_row),
+      `24months`  = any(TimePoint == "24months"  & PROM_captured_row),
+      `60months`  = any(TimePoint == "60months"  & PROM_captured_row),
+      `120months` = any(TimePoint == "120months" & PROM_captured_row),
+      MSTSLower_Total_NA           = any(MSTSLower_Total_NA == "!NA"),
+      HOOS12_Summary_TotalScore_NA = any(HOOS12_Summary_TotalScore_NA == "!NA"),
+      KOOS12_Summary_TotalScore_NA = any(KOOS12_Summary_TotalScore_NA == "!NA"),
+      VR12PCS_NA = any(VR12PCS_NA == "!NA"),
+      BPISFSeverityScore_NA = any(BPISFSeverityScore_NA == "!NA"), 
+      .groups = "drop"
+    )
+ 
+  epoxy("treatment_level has {nrow(treatment_level)} rows (expected {n_distinct(data$TreatmentID)} distinct TreatmentID)")
+  stopifnot(nrow(treatment_level) == n_distinct(data$TreatmentID))
+ 
+  epoxy("Building distinct TreatmentID x Usage combinations (drives the by-Usage columns)")
+ 
+  usage_lookup <- data |>
+    distinct(TreatmentID, Usage)
+ 
+  epoxy("{nrow(usage_lookup)} TreatmentID x Usage rows from {n_distinct(usage_lookup$TreatmentID)} distinct TreatmentID")
+ 
+  usage_level <- usage_lookup |>
+    left_join(treatment_level, by = "TreatmentID")
+ 
+  epoxy("Building RegistryCohortName table (Overall + by Usage)")
+ 
+  tbl_cohort <- build_overall_and_by_usage(
+    overall_data = treatment_level,
+    usage_data = usage_level,
+    vars = "RegistryCohortName"
+  )
+ 
+  epoxy("Building TimePoint table (Overall + by Usage, PROM captured per timepoint)")
+ 
+  timepoint_vars <- c("Preop", "3months", "6months", "12months", "24months", "60months", "120months")
+ 
+  tbl_timepoint <- build_overall_and_by_usage(
+    overall_data = treatment_level,
+    usage_data = usage_level,
+    vars = timepoint_vars,
+    type = list(everything() ~ "dichotomous"),
+    value = list(everything() ~ "TRUE")
+  )
+ 
+  epoxy("Building PROM captured (ever) table (Overall + by Usage)")
+ 
+  captured_vars <- c("MSTSLower_Total_NA", "HOOS12_Summary_TotalScore_NA", "KOOS12_Summary_TotalScore_NA", "VR12PCS_NA","BPISFSeverityScore_NA")
+ 
+  tbl_captured <- build_overall_and_by_usage(
+    overall_data = treatment_level,
+    usage_data = usage_level,
+    vars = captured_vars,
+    type = list(everything() ~ "dichotomous"),
+    value = list(everything() ~ "TRUE"),
+    label = list(
+      MSTSLower_Total_NA = "MSTS Captured",
+      HOOS12_Summary_TotalScore_NA = "HOOS12 Captured",
+      KOOS12_Summary_TotalScore_NA = "KOOS12 Captured",
+      VR12PCS_NA = "VR12 Captured",
+      BPISFSeverityScore_NA = "BPI Captured"
+    )
+  )
+ 
+  epoxy("Stacking sub-tables")
+ 
+  stacked_table <- tbl_stack(
+    list(tbl_cohort, tbl_timepoint, tbl_captured),
+    quiet = TRUE
+  )
+ 
+  return(stacked_table)
+}
+ 
+# Usage example:
+# stacked_summary <- generate_usage_summaries(SnapshotGMRSPROM)
+
+```
+
+
+
+
+
+```{r}
+#| label: tbl-promcapture2
+#| tbl-cap: "Summary of PROMs Capture by Timepoint for GMRS | MRH cases"
+# Usage example:
+
+
+GMRSstacked_summary <- generate_usage_summaries(SnapshotGMRSPROM)
+
+knitr::knit_print(GMRSstacked_summary)
+```
+
 ### Generate Initial List for Review
+
+A master list is created for case-by-case review in an accessible format.
 
 ```{r}
 GMRSExport <- Snapshot |> dplyr::filter(
