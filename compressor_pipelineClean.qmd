@@ -1,0 +1,1044 @@
+---
+title: "COMPRESSOR Transition Pipeline"
+subtitle: "HemlockDB Live Tables + Snapshot → Core Dataset → OC Import Tables"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: false
+editor: visual
+---
+
+# Gate Status
+
+This pipeline builds and validates its shaped output structurally ahead of real data landing. Four gates remain open (see `COMPRESSOR_Requirements_Register_v0_1_DRAFT`, Section 8) — everything resolvable through discussion has already been resolved. Each gate below is stubbed so the document knits end-to-end; every stub is flagged in its own chunk and summarised again at the end of this document.
+
+| Gate | Condition | Stub strategy used in this pipeline |
+|----|----|----|
+| G1 | HemlockDB CohortKey GUIDs for the 20 target cohort codes | `CompressorCohortMap$OC_CohortKey` carried as `NA_character_` |
+| G7 | Real Snapshot export / live-table headers | Synthetic placeholder source tibbles, shaped to confirmed OC target fields |
+| G8b | Literal field name for the FollowupClass (Short/Long) driver | `cfg$followupclass_field` placeholder, existence-checked defensively |
+| G10 | `CompressorCohortDiagnosisConfig` populated against real `DiagnosisRawFinal` inventory | Workbook's 7 example/placeholder rows pulled; hard-stop only if the tab is completely empty |
+
+# Package Load
+
+```{r}
+#| label: load-packages
+
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  "dplyr",
+  "tidyr",
+  "readr",
+  "stringr",
+  "purrr",
+  "tibble",
+  "lubridate",
+  "flextable",
+  "gargle",
+  "googledrive",
+  "googlesheets4",
+  "openxlsx2",
+  "tidyverse",
+  "naniar",
+  "epoxy",
+  "cli"
+)
+```
+
+# Authorisation
+
+```{r}
+#| label: auth
+#| echo: false
+
+options(
+  gargle_oauth_cache = ".secrets",
+  gargle_oauth_email = TRUE
+)
+
+googledrive::drive_auth(
+  cache = ".secrets",
+  email = TRUE
+)
+```
+
+# Configuration
+
+Paths, join keys, cohort vocab, and the two open suffix-driver placeholders (G8b) are centralised here so the rest of the document never hard-codes them.
+
+```{r}
+#| label: config
+
+cfg <- list(
+  # --- output ---
+  dir_output = here::here("data-out"),
+
+  # --- join keys ---
+  join_key_treatment = "TreatmentID",
+  join_key_patient   = "PatientID",
+
+  # --- known test patient, excluded from all sources at load time ---
+  test_treatment_id = "0.1",
+  test_patient_id    = "0",
+
+  # --- PROM timepoint vocabulary ---
+  # Tumour Long-tier follow-up extends to 10 years — uses the existing
+  # Post_120months placeholder column already in the OC Treatment schema.
+  # No new schema needed for this. Full per-cohort timepoint vocabulary
+  # remains open pending G7.
+  timepoints_full = c(
+    "Preop", "6weeks", "3months", "6months",
+    "12months", "24months", "60months", "120months"
+  ),
+
+  # --- G8b: literal field name for the FollowupClass (Short/Long) driver ---
+  # Categorical meaning is fully confirmed (Short = 3-month standard
+  # window, Long = 12-month standard extended to 10yr for COMPRESSOR).
+  # The literal source column name is TBC pending G8b — placeholder used
+  # below, defensively existence-checked once real headers land.
+  followupclass_field = "FollowupClass"
+)
+
+if (!dir.exists(cfg$dir_output)) dir.create(cfg$dir_output, recursive = TRUE)
+```
+
+```{r}
+#| label: cohort-vocab
+
+# Confirmed scope (register §3): Reintervention (THA/TKA) and Tumour
+# (UpperLimb/LowerLimb/Pelvis) only. KneeArthritis/HipArthritis/General
+# are explicitly out of scope for this build, not silently dropped.
+compressor_cohort_base <- c(
+  "ReinterventionTHA", "ReinterventionTKA",
+  "TumourUpperLimb", "TumourLowerLimb", "TumourPelvis"
+)
+
+compressor_valid_cohorts <- compressor_cohort_base
+```
+
+# 1. Load sources
+
+Two source pools feed this pipeline: the COMPRESSOR Snapshot/live tables themselves (G7-blocked — no real headers received yet), and the live OC Patient/Treatment export used later for deduplication (Step 3). Source-of-truth is **live-table-primary** (PRULO convention), not Snapshot-primary (AORA convention) — the live Treatment/Patient tables are authoritative once G7 clears; the Snapshot is secondary.
+
+## COMPRESSOR Snapshot + live tables (G7 stub)
+
+```{r}
+#| label: folder
+#| echo: false
+
+compressor_base_folder_id <- "REPLACE_WITH_COMPRESSOR_DRIVE_FOLDER_ID"
+```
+
+```{r}
+#| label: get-specific-snapshot
+
+get_specific_snapshot <- function(folder_name, base_folder_id = compressor_base_folder_id) {
+  tryCatch({
+    folder <- googledrive::drive_ls(googledrive::as_id(base_folder_id), pattern = paste0("^", folder_name, "$"))
+
+    if (nrow(folder) == 0) {
+      stop(paste("Folder", folder_name, "not found"))
+    }
+
+    snapshot_file <- googledrive::drive_ls(
+      folder$id,
+      pattern = "Registry data snapshot\\.xlsx$"
+    )
+
+    if (nrow(snapshot_file) == 0) {
+      stop("No snapshot file found in specified folder")
+    }
+
+    list(snapshot = snapshot_file, folder_name = folder$name)
+  }, error = function(e) {
+    stop(paste("Error finding specified snapshot:", e$message))
+  })
+}
+```
+
+```{r}
+#| label: g7-source-stub
+
+# ─────────────────────────────────────────────────────────────────────────
+# G7 GATE STUB — real Snapshot export and live-table headers not yet
+# received for COMPRESSOR. This chunk fabricates a small placeholder
+# source tibble shaped to the OC target fields already confirmed in the
+# Core Mapping - Patient / Core Mapping - Treatment tabs, so every
+# downstream chunk (ID crosswalk, cohort recode, dedup, PROM stubs,
+# write_oc_transfer) executes and validates its output shape end-to-end.
+# REPLACE this chunk with the real fetch-snapshot + live-table read once
+# G7 clears — no other chunk needs to change.
+# ─────────────────────────────────────────────────────────────────────────
+
+n_stub <- 8
+
+CompressorSnapshot <- tibble::tibble(
+  PatientID           = as.character(1:n_stub),
+  TreatmentID         = paste0(1:n_stub, ".1"),
+  LastName            = paste0("PLACEHOLDER_G7_Last", 1:n_stub),
+  GivenNames          = paste0("PLACEHOLDER_G7_Given", 1:n_stub),
+  DateOfBirth         = as.Date("1970-01-01") + (1:n_stub) * 365,
+  Sex                 = NA_character_,
+  Phone               = NA_character_,
+  Email               = NA_character_,
+  RegistryStatus      = NA_character_,
+  DiagnosisRawFinal   = c(
+    "TBC - e.g. \"Failed THA - aseptic loosening\"",
+    "TBC - e.g. \"Failed TKA - infection\"",
+    "TBC - e.g. \"Osteosarcoma - proximal humerus\"",
+    "TBC - e.g. \"Chondrosarcoma - femur\"",
+    "TBC - e.g. \"Metastatic lesion - pelvis\"",
+    "TBC - e.g. \"Primary knee OA\"",
+    "TBC - e.g. \"Primary hip OA\"",
+    NA_character_
+  ),
+  SurgicalTreatment   = NA_character_,
+  FollowupClass       = NA_character_,   # literal field name TBC — G8b
+  TreatmentActivity   = NA_character_,
+  DateLatestContact   = as.Date(NA)
+) |>
+  dplyr::filter(!(TreatmentID == cfg$test_treatment_id))
+
+epoxy::epoxy("PLACEHOLDER_G7: loaded {nrow(CompressorSnapshot)} stub row(s), {ncol(CompressorSnapshot)} column(s). Replace with real Snapshot/live-table read once G7 clears.")
+```
+
+```{r}
+#| label: g7-missingness
+
+CompressorSnapshot |>
+  naniar::vis_miss(warn_large_data = FALSE)
+```
+
+## OC live Patient/Treatment export (dedup target, Step 3)
+
+Held in a separate Google Sheet to the COMPRESSOR registry — this is OC's own live Patient table, used later purely for deduplication scoring. Following the same convention PRULO uses for its `OC_SheetIDs`.
+
+```{r}
+#| label: oc-sheet-ids
+
+OC_SheetIDs <- list(
+  Patient   = "REPLACE_WITH_OC_PATIENT_SHEET_ID_OR_URL",
+  Treatment = "REPLACE_WITH_OC_TREATMENT_SHEET_ID_OR_URL"
+)
+```
+
+```{r}
+#| label: oc-patient-stub
+
+# Placeholder OC live Patient table — replace with the real
+# googlesheets4::range_read() pull once OC_SheetIDs are populated.
+OC_Patient <- tibble::tibble(
+  PatientID  = character(0),
+  LastName   = character(0),
+  GivenNames = character(0),
+  DateOfBirth = as.Date(character(0)),
+  Phone      = character(0),
+  Email      = character(0)
+)
+
+epoxy::epoxy("PLACEHOLDER: OC live Patient table is empty ({nrow(OC_Patient)} rows) until OC_SheetIDs$Patient is populated.")
+```
+
+## ID Crosswalk
+
+Builds the crosswalk from `CompressorSnapshot`'s own (already-filtered) PatientID/TreatmentID, and defines the two lookup functions used everywhere else. Ported verbatim from AORA/PRULO — offset/padding pattern and `translate_treatment_prefixed_id()` need no rework for COMPRESSOR.
+
+```{r}
+#| label: oc-id-crosswalk
+
+# --- offset / padding parameters -------------------------------------
+id_offset      <- 1000000
+treatseq_width <- 2
+
+# --- defensive checks --------------------------------------------------
+max_patient_id <- max(as.numeric(CompressorSnapshot$PatientID), na.rm = TRUE)
+max_treatment_seq <- CompressorSnapshot$TreatmentID |>
+  stringr::str_split_i("\\.", 2) |>
+  as.numeric() |>
+  max(na.rm = TRUE)
+
+if (max_patient_id >= id_offset) {
+  epoxy::epoxy("WARNING: max local PatientID ({max_patient_id}) meets or exceeds id_offset ({id_offset}) — new PatientIDs will NOT come out a uniform digit count. Increase id_offset.")
+} else {
+  epoxy::epoxy("id_offset ({id_offset}) comfortably exceeds max local PatientID ({max_patient_id}) — new PatientIDs will be a uniform {nchar(as.character(id_offset + max_patient_id))}-digit string.")
+}
+
+if (max_treatment_seq > (10^treatseq_width - 1)) {
+  epoxy::epoxy("WARNING: at least one patient has more than {10^treatseq_width - 1} treatments (max observed: {max_treatment_seq}) — exceeds the fixed {treatseq_width}-digit OC suffix convention.")
+} else {
+  epoxy::epoxy("Max treatments for a single patient: {max_treatment_seq}. Fits the fixed {treatseq_width}-digit suffix.")
+}
+
+# --- the crosswalk itself -----------------------------------------------
+id_crosswalk <- CompressorSnapshot |>
+  dplyr::distinct(PatientID, TreatmentID) |>
+  dplyr::mutate(
+    PatientID_new   = as.character(as.numeric(PatientID) + id_offset),
+    TreatmentSeq    = stringr::str_split_i(TreatmentID, "\\.", 2),
+    TreatmentID_new = paste0(
+      PatientID_new, ".",
+      stringr::str_pad(TreatmentSeq, width = treatseq_width, pad = "0")
+    )
+  )
+
+naniar::miss_var_summary(id_crosswalk |> dplyr::select(PatientID_new, TreatmentID_new))
+
+patient_lookup   <- setNames(id_crosswalk$PatientID_new,   id_crosswalk$PatientID)
+treatment_lookup <- setNames(id_crosswalk$TreatmentID_new, id_crosswalk$TreatmentID)
+
+translate_patient_id <- function(x) unname(patient_lookup[x])
+
+translate_treatment_prefixed_id <- function(x) {
+  treatment_part <- stringr::str_extract(x, "^[^.]+\\.[^.]+")
+  suffix_part    <- stringr::str_remove(x, "^[^.]+\\.[^.]+\\.?")
+  new_treatment  <- unname(treatment_lookup[treatment_part])
+  dplyr::if_else(suffix_part == "", new_treatment, paste0(new_treatment, ".", suffix_part))
+}
+```
+
+# 2. Cohort classification
+
+Cohort assignment is recoded from `DiagnosisRawFinal` via an explicit, auditable config table (`CompressorCohortDiagnosisConfig`) — the same accountable pattern PRULO uses. Not assumed from a literal source cohort field (register §5, G9 resolved).
+
+## G10 — CompressorCohortDiagnosisConfig
+
+```{r}
+#| label: cohort-config-pull
+
+compressor_cohort_config <- googlesheets4::read_sheet(
+  ss        = SheetIDs$DbSS,
+  sheet     = "CompressorCohortDiagnosisConfig",
+  col_names = TRUE,
+  col_types = "cclcc"   # DiagnosisRawFinal, OC_CohortBase, InterimFlag, InterimNote, Notes
+)
+
+if (nrow(compressor_cohort_config) == 0) {
+  cli::cli_abort(c(
+    "x" = "CompressorCohortDiagnosisConfig sheet tab is empty.",
+    "i" = "Populate the config table before running cohort classification."
+  ))
+}
+
+epoxy::epoxy("Loaded CompressorCohortDiagnosisConfig: {nrow(compressor_cohort_config)} row(s) (G10 — populate against real DiagnosisRawFinal inventory once G7 clears).")
+```
+
+```{r}
+#| label: cohort-join-classify
+
+CompressorClassified <- CompressorSnapshot |>
+  dplyr::left_join(
+    compressor_cohort_config |> dplyr::select(DiagnosisRawFinal, OC_CohortBase),
+    by = "DiagnosisRawFinal"
+  )
+
+CompressorClassified |>
+  dplyr::select(DiagnosisRawFinal, OC_CohortBase) |>
+  naniar::vis_miss(warn_large_data = FALSE)
+
+compressor_unmatched <- CompressorClassified |>
+  dplyr::filter(is.na(OC_CohortBase)) |>
+  dplyr::count(DiagnosisRawFinal, name = "n", sort = TRUE)
+
+if (nrow(compressor_unmatched) > 0) {
+  epoxy::epoxy("WARNING: {sum(compressor_unmatched$n)} record(s) across {nrow(compressor_unmatched)} DiagnosisRawFinal value(s) have no config entry — see compressor_unmatched.")
+}
+```
+
+```{r}
+#| label: cohort-restrict-scope
+
+CompressorInScope <- CompressorClassified |>
+  dplyr::filter(OC_CohortBase %in% compressor_valid_cohorts)
+
+epoxy::epoxy("Retained {nrow(CompressorInScope)} of {nrow(CompressorClassified)} record(s) after restricting to Reintervention/Tumour scope ({nrow(CompressorClassified) - nrow(CompressorInScope)} dropped as out-of-scope or unmatched).")
+```
+
+## Suffix recode logic — NS/Surg + Short/Long
+
+`SurgClass` is fully ported from AORA/PRULO (`surg_suffix()`, G8a resolved). `FollowupClass` is a per-record categorical field — the literal source column name is still TBC (G8b), so its presence is checked defensively before use.
+
+```{r}
+#| label: surg-suffix
+
+# ---- NS/Surg: fully ported from AORA/PRULO, no new derivation -----------
+surg_suffix <- function(x) {
+  dplyr::case_when(
+    x == "Surgical" ~ "Surg",
+    .default        ~ "NS"   # Non-Surgical, Surgery recommended, NA all -> NS
+  )
+}
+```
+
+```{r}
+#| label: g8b-field-check
+
+# ─────────────────────────────────────────────────────────────────────────
+# G8b GATE STUB — literal field name for the FollowupClass (Short/Long)
+# driver is TBC. cfg$followupclass_field holds the current placeholder
+# name. This chunk warns (not hard-stops) if that column isn't found once
+# real headers land, so the rest of the pipeline can still run.
+# ─────────────────────────────────────────────────────────────────────────
+
+if (!cfg$followupclass_field %in% names(CompressorInScope)) {
+  epoxy::epoxy("WARNING (G8b): expected FollowupClass column '{cfg$followupclass_field}' not found in source data. Update cfg$followupclass_field once the real field name is confirmed.")
+}
+```
+
+```{r}
+#| label: cohort-map-expand
+
+# ---- cohort map: 5 pathology/region base x Short|Long x NS|Surg = 20 ----
+CompressorCohortMap <- tidyr::expand_grid(
+  OC_CohortBase = compressor_cohort_base,
+  FollowupClass = c("Short", "Long"),
+  SurgClass     = c("NS", "Surg")
+) |>
+  dplyr::mutate(
+    OC_CohortName = paste0(OC_CohortBase, FollowupClass, SurgClass),
+    OC_CohortKey  = NA_character_   # G1 — populated once HemlockDB cohort GUIDs are confirmed
+  )
+```
+
+```{r}
+#| label: cohort-suffix-join
+
+# ---- per-record classification -------------------------------------------
+# FollowupClass is a per-record categorical field (name TBC pending G8b) —
+# Short = OC standard 3-month tracked window; Long = 12-month standard,
+# extended to 10 years for COMPRESSOR's custom cohorts. Categorical, not
+# threshold-derived from a continuous duration value.
+CompressorInScope <- CompressorInScope |>
+  dplyr::mutate(
+    SurgClass     = surg_suffix(SurgicalTreatment),
+    OC_CohortName = paste0(OC_CohortBase, FollowupClass, SurgClass)
+  ) |>
+  dplyr::left_join(CompressorCohortMap,
+    by = c("OC_CohortBase", "FollowupClass", "SurgClass", "OC_CohortName"))
+
+# ---- QC: classification missingness --------------------------------------
+CompressorInScope |>
+  dplyr::select(OC_CohortBase, FollowupClass, SurgicalTreatment, SurgClass, OC_CohortKey) |>
+  naniar::vis_miss(warn_large_data = FALSE)
+
+if (any(is.na(CompressorInScope$OC_CohortKey))) {
+  epoxy::epoxy("WARNING (G1): {sum(is.na(CompressorInScope$OC_CohortKey))} record(s) missing a resolved OC_CohortKey.")
+} else {
+  epoxy::epoxy("All {nrow(CompressorInScope)} in-scope record(s) classified into one of {nrow(CompressorCohortMap)} target cohort codes.")
+}
+```
+
+# 3. Deduplication against live OC Patient table
+
+Each COMPRESSOR patient is scored against every live OC Patient record using a faithful R translation of the OC `isExistingPatient()` algorithm — reused verbatim from AORA/PRULO, no rework needed.
+
+```{r}
+#| label: dedup-normalisation
+
+# ── R translations of the Five platform normalisation functions ─────────────
+oc_format_email <- function(email) {
+  if (is.na(email) || email == "") return("")
+  e <- stringr::str_trim(as.character(email))
+  if (stringr::str_detect(e, "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) e else ""
+}
+
+oc_format_mobile <- function(mobile) {
+  if (is.na(mobile) || mobile == "") return("")
+  m <- stringr::str_replace_all(as.character(mobile), "\\D", "")
+
+  if (stringr::str_detect(m, "^4\\d{8}$")) {
+    paste0("0", substr(m, 1, 3), " ", substr(m, 4, 6), " ", substr(m, 7, 9))
+  } else if (stringr::str_detect(m, "^614\\d{8}$")) {
+    paste0("0", substr(m, 3, 5), " ", substr(m, 6, 8), " ", substr(m, 9, 11))
+  } else if (stringr::str_detect(m, "^04\\d{8}$")) {
+    paste0(substr(m, 1, 4), " ", substr(m, 5, 7), " ", substr(m, 8, 10))
+  } else {
+    mobile
+  }
+}
+
+oc_is_same_date <- function(d1, d2) {
+  d1 <- suppressWarnings(lubridate::as_date(d1))
+  d2 <- suppressWarnings(lubridate::as_date(d2))
+  if (is.na(d1) || is.na(d2)) return(FALSE)
+  lubridate::year(d1)  == lubridate::year(d2)  &&
+  lubridate::month(d1) == lubridate::month(d2) &&
+  lubridate::day(d1)   == lubridate::day(d2)
+}
+```
+
+```{r}
+#| label: dedup-scoring-function
+
+# ── Thresholds (from isExistingPatient source) ──────────────────────────────
+CONFIRMED_THRESHOLD <- 70L   # score > 70 -> Existing-Confirmed (OC: "Returning")
+POSSIBLE_THRESHOLD  <- 40L   # score > 40 -> Possible-Match     (OC: "Possible")
+
+# ── Vectorised scoring function ─────────────────────────────────────────────
+# Field weights (from isExistingPatient):
+#   LastName  exact lowercase match -> +39
+#   GivenNames exact lowercase match -> +13
+#   DOB       isSameDate match      -> +20
+#   Mobile    exact normalised      -> +14
+#   Email     exact normalised      -> +14
+oc_match_score_vec <- function(
+    last_compressor,  last_oc,
+    first_compressor, first_oc,
+    dob_compressor,   dob_oc,
+    mob_compressor,   mob_oc,
+    email_compressor, email_oc
+) {
+  score <- 0L
+
+  score <- score + dplyr::if_else(
+    !is.na(last_compressor) & !is.na(last_oc) & last_compressor != "" & last_oc != "" &
+      stringr::str_to_lower(last_compressor) == stringr::str_to_lower(last_oc),
+    39L, 0L
+  )
+
+  score <- score + dplyr::if_else(
+    !is.na(first_compressor) & !is.na(first_oc) & first_compressor != "" & first_oc != "" &
+      stringr::str_to_lower(first_compressor) == stringr::str_to_lower(first_oc),
+    13L, 0L
+  )
+
+  dob_c <- suppressWarnings(lubridate::as_date(dob_compressor))
+  dob_o <- suppressWarnings(lubridate::as_date(dob_oc))
+  score <- score + dplyr::if_else(
+    !is.na(dob_c) & !is.na(dob_o) & dob_c == dob_o,
+    20L, 0L
+  )
+
+  score <- score + dplyr::if_else(
+    !is.na(mob_compressor) & !is.na(mob_oc) & mob_compressor != "" & mob_oc != "" &
+      mob_compressor == mob_oc,
+    14L, 0L
+  )
+
+  score <- score + dplyr::if_else(
+    !is.na(email_compressor) & !is.na(email_oc) & email_compressor != "" & email_oc != "" &
+      email_compressor == email_oc,
+    14L, 0L
+  )
+
+  score
+}
+```
+
+```{r}
+#| label: dedup-run
+
+# ── Normalise OC Patient keys ─────────────────────────────────────────────
+OC_match_keys <- OC_Patient |>
+  dplyr::transmute(
+    OC_PatientID = PatientID,
+    OC_last      = stringr::str_to_lower(stringr::str_trim(LastName)),
+    OC_first     = stringr::str_to_lower(stringr::str_trim(GivenNames)),
+    OC_dob       = lubridate::as_date(DateOfBirth),
+    OC_mobile    = purrr::map_chr(Phone, oc_format_mobile),
+    OC_email     = purrr::map_chr(Email, oc_format_email)
+  )
+
+# ── Normalise COMPRESSOR Patient keys ─────────────────────────────────────
+Compressor_match_keys <- CompressorInScope |>
+  dplyr::transmute(
+    Compressor_PatientID = PatientID,
+    Compressor_last       = stringr::str_to_lower(stringr::str_trim(LastName)),
+    Compressor_first      = stringr::str_to_lower(stringr::str_trim(GivenNames)),
+    Compressor_dob        = lubridate::as_date(DateOfBirth),
+    Compressor_mobile     = purrr::map_chr(Phone, oc_format_mobile),
+    Compressor_email      = purrr::map_chr(Email, oc_format_email)
+  )
+
+if (nrow(OC_match_keys) == 0) {
+  epoxy::epoxy("PLACEHOLDER: OC live Patient table is empty — every COMPRESSOR patient will score 0 (New) until OC_SheetIDs$Patient is populated.")
+}
+
+# ── Cross-join and score ─────────────────────────────────────────────────
+dedup_scores <- Compressor_match_keys |>
+  dplyr::cross_join(OC_match_keys) |>
+  dplyr::mutate(
+    MatchScore = oc_match_score_vec(
+      last_compressor  = Compressor_last,  last_oc  = OC_last,
+      first_compressor = Compressor_first, first_oc = OC_first,
+      dob_compressor   = Compressor_dob,   dob_oc   = OC_dob,
+      mob_compressor   = Compressor_mobile, mob_oc  = OC_mobile,
+      email_compressor = Compressor_email, email_oc = OC_email
+    )
+  )
+
+# ── Best match per COMPRESSOR patient ────────────────────────────────────
+dedup_best <- dedup_scores |>
+  dplyr::group_by(Compressor_PatientID) |>
+  dplyr::slice_max(order_by = MatchScore, n = 1, with_ties = FALSE) |>
+  dplyr::ungroup() |>
+  dplyr::mutate(
+    MigrationClass = dplyr::case_when(
+      MatchScore > CONFIRMED_THRESHOLD ~ "Existing-Confirmed",
+      MatchScore > POSSIBLE_THRESHOLD  ~ "Possible-Match",
+      .default                         ~ "New"
+    )
+  ) |>
+  dplyr::select(
+    Compressor_PatientID,
+    OC_PatientID_BestMatch = OC_PatientID,
+    MatchScore,
+    MigrationClass
+  )
+```
+
+```{r}
+#| label: dedup-summary
+
+dedup_summary <- dedup_best |>
+  dplyr::count(MigrationClass) |>
+  dplyr::mutate(
+    Pct = scales::percent(n / sum(n), accuracy = 0.1),
+    Action = dplyr::case_when(
+      MigrationClass == "New"                ~ "Patient + Treatment records inserted",
+      MigrationClass == "Existing-Confirmed" ~ "Treatment record only — Patient already in OC",
+      MigrationClass == "Possible-Match"     ~ "Manual review required before insert"
+    )
+  )
+
+dedup_summary |>
+  flextable::flextable() |>
+  flextable::set_header_labels(
+    MigrationClass = "Classification",
+    n              = "Count",
+    Pct            = "%",
+    Action         = "Migration Action"
+  ) |>
+  flextable::autofit()
+```
+
+# 4. PROM instrument stubs
+
+EQ-5D and VR-12 apply to every patient regardless of cohort. HOOS12 (ReinterventionTHA) and KOOS12 (ReinterventionTKA) are the AORA-family joint-specific instruments. MSTS-UpperLimb / MSTS-LowerLimb is the sole cohort-specific instrument for Tumour cohorts (MSTS-LowerLimb shared by TumourLowerLimb and TumourPelvis) — nothing additive alongside it. Field-level detail (timepoints, master-table envelope fields, item-level fields) remains pending G7; these stubs establish the target shape so `write_oc_transfer()` has something to validate against once real headers land.
+
+```{r}
+#| label: proms-stub-eq5d
+
+# EQ-5D — All cohorts. Field-level detail TBC pending G7.
+IntEQ5D <- tibble::tibble(
+  TreatmentID     = character(0),
+  TimestampEQ5D   = as.Date(character(0)),
+  TimepointEQ5D   = character(0),
+  FormIDEQ5D      = character(0)
+)
+
+epoxy::epoxy("PLACEHOLDER_G7: EQ-5D stub — {nrow(IntEQ5D)} row(s). Applies to all in-scope patients.")
+```
+
+```{r}
+#| label: proms-stub-vr12
+
+# VR-12 — All cohorts. Field-level detail TBC pending G7.
+IntVR12 <- tibble::tibble(
+  TreatmentID   = character(0),
+  TimestampVR12 = as.Date(character(0)),
+  TimepointVR12 = character(0),
+  FormIDVR12    = character(0)
+)
+
+epoxy::epoxy("PLACEHOLDER_G7: VR-12 stub — {nrow(IntVR12)} row(s). Applies to all in-scope patients.")
+```
+
+```{r}
+#| label: proms-stub-hoos12-koos12
+
+# HOOS12 — ReinterventionTHA only. AORA family, same pattern.
+IntHOOS12 <- tibble::tibble(
+  TreatmentID     = character(0),
+  TimestampHOOS12 = as.Date(character(0)),
+  TimepointHOOS12 = character(0),
+  FormIDHOOS12    = character(0)
+)
+
+# KOOS12 — ReinterventionTKA only. AORA family, same pattern.
+IntKOOS12 <- tibble::tibble(
+  TreatmentID     = character(0),
+  TimestampKOOS12 = as.Date(character(0)),
+  TimepointKOOS12 = character(0),
+  FormIDKOOS12    = character(0)
+)
+
+epoxy::epoxy("PLACEHOLDER_G7: HOOS12 stub — {nrow(IntHOOS12)} row(s) (ReinterventionTHA). KOOS12 stub — {nrow(IntKOOS12)} row(s) (ReinterventionTKA).")
+```
+
+```{r}
+#| label: proms-stub-msts
+
+# MSTS-UpperLimb — TumourUpperLimb only. Sole cohort-specific instrument,
+# nothing additive alongside it.
+IntMSTSUpperLimb <- tibble::tibble(
+  TreatmentID          = character(0),
+  TimestampMSTSUpper    = as.Date(character(0)),
+  TimepointMSTSUpper    = character(0),
+  FormIDMSTSUpper       = character(0)
+)
+
+# MSTS-LowerLimb — shared by TumourLowerLimb and TumourPelvis. Sole
+# cohort-specific instrument, nothing additive alongside it.
+IntMSTSLowerLimb <- tibble::tibble(
+  TreatmentID          = character(0),
+  TimestampMSTSLower    = as.Date(character(0)),
+  TimepointMSTSLower    = character(0),
+  FormIDMSTSLower       = character(0)
+)
+
+epoxy::epoxy("PLACEHOLDER_G7: MSTS-UpperLimb stub — {nrow(IntMSTSUpperLimb)} row(s) (TumourUpperLimb). MSTS-LowerLimb stub — {nrow(IntMSTSLowerLimb)} row(s) (TumourLowerLimb, TumourPelvis).")
+```
+
+# 5. Complications & Reoperations stub
+
+**Reconciliation correction:** the COMPRESSOR field-mapping workbook's Complications & Reoperations tab lists simplified flag-style OC target fields (`ComplicationOccurred`, `ReoperationOccurred`, `Date`). Cross-checking against the fixed OC schema AORA's pipeline actually writes to (Part IV — Database doc; `ComplicTable2`/`Reoperations` in `aora_pipelineClean.qmd`) shows the real target shape is richer: `Complication ID`, `Occurrence`, `TreatmentKey`, `DateOfOccurrence`, `Nature`, `TreatmentOffered`, `ReoperationDate` for Complications, and `TreatmentKey`, `Name`, `ComplicationResponseKey`, `ReoperationDate`, `ComplicationNature` for Reoperations. Since Complications/Reoperations OC target fields are fixed schema reused across clients (same convention already applied to Patient/Treatment), this pipeline now targets that real shape rather than the workbook's simplified placeholder — worth folding back into the COMPRESSOR workbook so the two stay in sync. Reoperations is generated downstream from Complications (not mapped directly), matching the reconciliation's confirmed-correct AORA pattern: `ReoperationProcedure` (Yes/No) → `TreatmentOffered` (Surgical/Non-Surgical), with unexpected values flagged rather than silently coerced to NA. The free-text reoperation-name classifier stub is kept — the lookup table below holds placeholder patterns only, ready to extend once real `ComplicationNature` values are available.
+
+```{r}
+#| label: build-complications-stub
+
+Complications <- tibble::tibble(
+  `Complication ID` = character(0),
+  Occurrence        = character(0),
+  TreatmentKey      = character(0),
+  DateOfOccurrence  = as.Date(character(0)),
+  Nature            = character(0),
+  TreatmentOffered  = character(0),
+  ReoperationDate   = as.Date(character(0))
+)
+
+epoxy::epoxy("PLACEHOLDER_G7: Complications stub — {nrow(Complications)} row(s).")
+```
+
+```{r}
+#| label: treatment-offered-recode-stub
+
+# Ported from AORA's treatment-offered-recode chunk (confirmed-consistent
+# per the reconciliation review) — ready to run once G7 lands a real
+# ReoperationProcedure (Yes/No) source column. Unexpected values are
+# flagged rather than silently coerced to NA.
+recode_treatment_offered <- function(reoperation_procedure) {
+  unexpected_values <- reoperation_procedure[
+    !is.na(reoperation_procedure) &
+      !stringr::str_to_lower(stringr::str_trim(reoperation_procedure)) %in% c("yes", "no")
+  ]
+
+  if (length(unexpected_values) > 0) {
+    epoxy::epoxy("WARNING: ReoperationProcedure has unexpected value(s) outside Yes/No: {paste(unique(unexpected_values), collapse = ', ')}")
+  }
+
+  dplyr::case_when(
+    stringr::str_to_lower(stringr::str_trim(reoperation_procedure)) == "yes" ~ "Surgical",
+    stringr::str_to_lower(stringr::str_trim(reoperation_procedure)) == "no"  ~ "Non-Surgical",
+    .default = NA_character_
+  )
+}
+```
+
+```{r}
+#| label: reoperation-name-lookup-stub
+
+# pattern: case-insensitive regex matched against a cleaned text fragment.
+# standard_name: value written to Reoperations$Name on a match.
+# Placeholder patterns only — extend once real ComplicationNature values
+# are available (G7). Ordered most- to least-specific — earlier rows win.
+reoperation_procedure_lookup <- tibble::tribble(
+  ~pattern,                                                                  ~standard_name,
+  "revision.*total.*(knee|hip)|revision.*arthroplasty|revision.*replacement", "Revision Arthroplasty",
+  "washout.*debrid|debrid.*washout",                                         "Washout and Debridement",
+  "excis",                                                                   "Excision"
+)
+```
+
+```{r}
+#| label: reoperation-name-derive-functions-stub
+
+strip_conditional_fragments <- function(x) {
+  x |>
+    stringr::str_remove_all("\\+/-\\s*[^;+/]+") |>
+    stringr::str_replace_all("\\s{2,}", " ") |>
+    stringr::str_trim()
+}
+
+split_procedure_fragments <- function(x) {
+  x |>
+    stringr::str_split(";|\\+|\\band\\b|/") |>
+    purrr::map(stringr::str_trim) |>
+    purrr::map(\(frag) frag[frag != ""])
+}
+
+match_procedure_fragment <- function(fragment) {
+  hit <- reoperation_procedure_lookup$standard_name[
+    purrr::map_lgl(
+      reoperation_procedure_lookup$pattern,
+      \(pat) stringr::str_detect(stringr::str_to_lower(fragment), pat)
+    )
+  ]
+  if (length(hit) == 0) NA_character_ else hit[1]
+}
+
+derive_reoperation_name <- function(complication_nature) {
+  cleaned   <- strip_conditional_fragments(complication_nature)
+  fragments <- split_procedure_fragments(cleaned)
+
+  purrr::map_chr(fragments, \(frags) {
+    if (length(frags) == 0 || all(is.na(frags))) return(NA_character_)
+    matched <- purrr::map_chr(frags, match_procedure_fragment)
+    matched <- unique(matched[!is.na(matched)])
+    if (length(matched) == 0) return("Reoperation - Unspecified")
+    stringr::str_c(matched, collapse = "; ")
+  })
+}
+```
+
+```{r}
+#| label: build-reoperations-stub
+
+# Generated downstream from Complications where TreatmentOffered ==
+# "Surgical" — not mapped directly from source — matching the pattern
+# confirmed correct in the reconciliation review. Currently empty because
+# Complications is itself an empty G7 stub; this will populate correctly
+# once real data flows through recode_treatment_offered() above.
+Reoperations <- Complications |>
+  dplyr::filter(TreatmentOffered == "Surgical") |>
+  dplyr::transmute(
+    TreatmentKey,
+    Name                    = derive_reoperation_name(Nature),
+    ComplicationResponseKey = `Complication ID`,
+    ReoperationDate,
+    ComplicationNature      = Nature
+  )
+
+epoxy::epoxy("PLACEHOLDER_G7: Reoperations stub — {nrow(Reoperations)} row(s), generated downstream from Complications. Name classifier ready but unexercised (no ComplicationNature values yet).")
+```
+
+# Write Outputs
+
+`write_oc_transfer()`, date standardisation, and target-column contracts reused verbatim from AORA/PRULO — no rework needed.
+
+```{r}
+#| label: write-oc-transfer-helper
+
+oc_date_exclusions <- c("DateCurrentEndTimeWindow")
+
+parse_oc_date <- function(x) {
+  if (inherits(x, "Date") || inherits(x, "POSIXt")) {
+    return(lubridate::as_date(x))
+  }
+
+  lubridate::as_date(
+    lubridate::parse_date_time(
+      x,
+      orders = c("Ymd", "dmy", "mdy", "dmY HMS", "Ymd HMS"),
+      quiet = TRUE
+    )
+  )
+}
+
+standardise_oc_dates <- function(df) {
+  date_cols <- names(df)[
+    (stringr::str_detect(names(df), "Date") | stringr::str_starts(names(df), "Timestamp")) &
+      !names(df) %in% oc_date_exclusions
+  ]
+
+  df |>
+    dplyr::mutate(
+      dplyr::across(
+        dplyr::all_of(date_cols),
+        ~ format(parse_oc_date(.x), "%d/%m/%Y")
+      )
+    )
+}
+
+write_oc_transfer <- function(df, target_cols, file_name) {
+  missing_cols <- setdiff(target_cols, names(df))
+  extra_cols   <- setdiff(names(df), target_cols)
+
+  if (length(missing_cols) > 0) {
+    print(epoxy::epoxy("ERROR: {file_name} is missing expected column(s): {paste(missing_cols, collapse = ', ')} — NOT written."))
+    return(invisible(NULL))
+  }
+  if (length(extra_cols) > 0) {
+    print(epoxy::epoxy("WARNING: {file_name} has unexpected extra column(s), dropped on write: {paste(extra_cols, collapse = ', ')}"))
+  }
+
+  out_raw <- df |> dplyr::select(dplyr::all_of(target_cols))
+  out     <- out_raw |> standardise_oc_dates()
+
+  date_cols <- names(out)[
+    (stringr::str_detect(names(out), "Date") | stringr::str_starts(names(out), "Timestamp")) &
+      !names(out) %in% oc_date_exclusions
+  ]
+
+  for (col in date_cols) {
+    was_present <- !is.na(out_raw[[col]]) & stringr::str_trim(as.character(out_raw[[col]])) != ""
+    now_missing <- is.na(out[[col]])
+    n_failed <- sum(was_present & now_missing)
+    if (n_failed > 0) {
+      print(epoxy::epoxy("WARNING: {file_name} column {col} — {n_failed} value(s) could not be parsed as a date and were written blank."))
+    }
+  }
+
+  out_path <- file.path(cfg$dir_output, file_name)
+  readr::write_csv(out, out_path, na = "")
+  print(epoxy::epoxy("Wrote {file_name}: {nrow(out)} rows, {ncol(out)} columns -> {out_path}"))
+  invisible(out_path)
+}
+```
+
+## Core tables
+
+Target columns trimmed to the fields confirmed in the COMPRESSOR Core Mapping - Patient / Core Mapping - Treatment tabs.
+
+```{r}
+#| label: write-core-tables
+
+patient_target_cols <- c(
+  "CreationDate", "PatientID", "LastName", "GivenNames",
+  "DateOfBirth", "Sex", "RegistryStatus", "Email", "Phone",
+  "AlternateID"
+)
+
+treatment_target_cols <- c(
+  "DateTreatmentRecordCreation", "PatientID", "TreatmentID",
+  "EBMAComment", "TreatmentActivity", "DateLatestContact",
+  "SurgicalTreatment", "SurgClass", "FollowupClass",
+  "OC_CohortName", "RegistryCohortID"
+)
+
+complications_target_cols <- c(
+  "Complication ID", "Occurrence", "TreatmentKey", "DateOfOccurrence", "Nature",
+  "TreatmentOffered", "ReoperationDate"
+)
+
+reoperations_target_cols <- c(
+  "TreatmentKey", "Name", "ComplicationResponseKey", "ReoperationDate", "ComplicationNature"
+)
+
+# ── Patient/Treatment output tables ──────────────────────────────────────
+CompressorPatientOut <- CompressorInScope |>
+  dplyr::transmute(
+    CreationDate   = as.Date(NA),
+    PatientID      = translate_patient_id(PatientID),
+    LastName       = stringr::str_to_title(stringr::str_trim(LastName)),
+    GivenNames     = stringr::str_to_title(stringr::str_trim(GivenNames)),
+    DateOfBirth    = DateOfBirth,
+    Sex            = Sex,
+    RegistryStatus = RegistryStatus,
+    Email          = Email,
+    Phone          = Phone,
+    AlternateID    = PatientID
+  )
+
+CompressorTreatmentOut <- CompressorInScope |>
+  dplyr::transmute(
+    DateTreatmentRecordCreation = as.Date(NA),
+    PatientID          = translate_patient_id(PatientID),
+    TreatmentID        = translate_treatment_prefixed_id(TreatmentID),
+    EBMAComment        = TreatmentID,
+    TreatmentActivity  = TreatmentActivity,
+    DateLatestContact  = DateLatestContact,
+    SurgicalTreatment  = SurgicalTreatment,
+    SurgClass          = SurgClass,
+    FollowupClass      = FollowupClass,
+    OC_CohortName      = OC_CohortName,
+    RegistryCohortID   = OC_CohortKey
+  )
+
+write_oc_transfer(CompressorPatientOut,   patient_target_cols,      "Patient.csv")
+write_oc_transfer(CompressorTreatmentOut, treatment_target_cols,    "Treatment.csv")
+write_oc_transfer(Complications,          complications_target_cols, "Complications.csv")
+write_oc_transfer(Reoperations,           reoperations_target_cols,  "Reoperations.csv")
+```
+
+## PROM tables
+
+```{r}
+#| label: write-prom-tables
+
+eq5d_target_cols  <- c("TreatmentID", "TimestampEQ5D",  "TimepointEQ5D",  "FormIDEQ5D")
+vr12_target_cols  <- c("TreatmentID", "TimestampVR12",  "TimepointVR12",  "FormIDVR12")
+hoos12_target_cols <- c("TreatmentID", "TimestampHOOS12", "TimepointHOOS12", "FormIDHOOS12")
+koos12_target_cols <- c("TreatmentID", "TimestampKOOS12", "TimepointKOOS12", "FormIDKOOS12")
+msts_upper_target_cols <- c("TreatmentID", "TimestampMSTSUpper", "TimepointMSTSUpper", "FormIDMSTSUpper")
+msts_lower_target_cols <- c("TreatmentID", "TimestampMSTSLower", "TimepointMSTSLower", "FormIDMSTSLower")
+
+write_oc_transfer(IntEQ5D,          eq5d_target_cols,       "EQ5D.csv")
+write_oc_transfer(IntVR12,          vr12_target_cols,       "VR12.csv")
+write_oc_transfer(IntHOOS12,        hoos12_target_cols,     "HOOS12.csv")
+write_oc_transfer(IntKOOS12,        koos12_target_cols,     "KOOS12.csv")
+write_oc_transfer(IntMSTSUpperLimb, msts_upper_target_cols, "MSTSUpperLimb.csv")
+write_oc_transfer(IntMSTSLowerLimb, msts_lower_target_cols, "MSTSLowerLimb.csv")
+```
+
+## ID crosswalk
+
+```{r}
+#| label: write-id-crosswalk
+
+id_crosswalk_cols <- c(
+  "PatientID", "TreatmentID", "PatientID_new", "TreatmentSeq", "TreatmentID_new"
+)
+
+write_oc_transfer(id_crosswalk, id_crosswalk_cols, "IDCrosswalk.csv")
+```
+
+# Validation checks
+
+## ID translation QC
+
+Ported from AORA's `oc_translation_qc` chunk — the reconciliation review confirmed the OC ID crosswalk is applied uniformly across every output table, consistent with "no table recoded independently." Extended here to cover every COMPRESSOR output table so a miss (an ID that existed downstream but was never in `CompressorSnapshot`'s PatientID/TreatmentID) is caught before anything gets written with an NA identifier.
+
+```{r}
+#| label: id-translation-qc
+
+compressor_translation_qc <- tibble::tribble(
+  ~table,          ~column,        ~n_missing,
+  "Patient",       "PatientID",    sum(is.na(CompressorPatientOut$PatientID)),
+  "Treatment",     "PatientID",    sum(is.na(CompressorTreatmentOut$PatientID)),
+  "Treatment",     "TreatmentID",  sum(is.na(CompressorTreatmentOut$TreatmentID)),
+  "Complications", "TreatmentKey", sum(is.na(Complications$TreatmentKey)),
+  "Reoperations",  "TreatmentKey", sum(is.na(Reoperations$TreatmentKey))
+)
+
+if (any(compressor_translation_qc$n_missing > 0)) {
+  epoxy::epoxy("WARNING: OC ID translation left missing value(s) in {sum(compressor_translation_qc$n_missing > 0)} table/column pair(s) — see compressor_translation_qc.")
+} else {
+  epoxy::epoxy("OC ID translation QC: no missing translated ID values across {nrow(compressor_translation_qc)} table/column pair(s) checked.")
+}
+
+compressor_translation_qc |>
+  flextable::flextable() |>
+  flextable::autofit()
+```
+
+## Object wiring audit
+
+Reconciliation lesson from AORA (`IntraopTable2`/`ProcedureDescription` — built, computed, then never joined back or passed to `write_oc_transfer()`, "dropped on the floor"): every object built above is confirmed wired into an output write. `CompressorCohortMap` → joined into `CompressorInScope$OC_CohortKey` → `Treatment.csv`. `Complications` → drives `Reoperations` → both written. All six PROM stub tibbles → all six PROM `write_oc_transfer()` calls. Nothing computed in this document is currently orphaned.
+
+# Gate Status Summary
+
+```{r}
+#| label: gate-status-summary
+
+gate_status <- tibble::tribble(
+  ~Gate, ~Condition,                                                               ~Status, ~RecordsAffected,
+  "G1",  "HemlockDB CohortKey GUIDs for the 20 target cohort codes",               "OPEN",  sum(is.na(CompressorInScope$OC_CohortKey)),
+  "G7",  "Real Snapshot export / live-table headers received for COMPRESSOR",      "OPEN",  nrow(CompressorSnapshot),
+  "G8b", "Literal field name for the FollowupClass (Short/Long) driver",           "OPEN",  sum(!cfg$followupclass_field %in% names(CompressorInScope)),
+  "G10", "CompressorCohortDiagnosisConfig populated against real diagnosis inventory", "OPEN", nrow(compressor_unmatched)
+)
+
+gate_status |>
+  flextable::flextable() |>
+  flextable::set_header_labels(
+    Gate            = "Gate",
+    Condition       = "Condition",
+    Status          = "Status",
+    RecordsAffected = "Rows Currently Affected"
+  ) |>
+  flextable::color(i = ~ Status == "OPEN", j = "Status", color = "#c62828") |>
+  flextable::autofit()
+
+epoxy::epoxy("Pipeline knitted end-to-end against placeholder data. {nrow(gate_status)} gate(s) remain open — see table above. Re-run this document once G1, G7, G8b, and G10 clear.")
+```
